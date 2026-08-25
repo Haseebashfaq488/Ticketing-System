@@ -1,0 +1,767 @@
+Exactly. I think we now have a clean core workflow. The key is that **ticket support and live chat are two entry points into the same AI support pipeline**, rather than two completely separate systems.
+
+The source explicitly requires ticket analysis, categorization, priority, response generation, knowledge use, human-in-the-loop handling, and an agent; your live-chat addition can sit naturally on top of that architecture. 
+
+Let's freeze the domain model at this level and design the workflow/tables **without fields/columns yet**.
+
+---
+
+# 1. The central idea
+
+I would model the system around this:
+
+```text
+                         CUSTOMER
+                            │
+                ┌───────────┴───────────┐
+                │                       │
+                ▼                       ▼
+             LIVE CHAT                TICKET
+                │                       │
+                │                       │
+                ▼                       │
+           Conversation                 │
+                │                       │
+                │ "Create Ticket"       │
+                └───────────┬───────────┘
+                            ▼
+                          TICKET
+                            │
+                            │
+                            ▼
+                       AI PIPELINE
+                            │
+              ┌─────────────┼─────────────┐
+              │             │             │
+              ▼             ▼             ▼
+           Category      Priority      Confidence
+                            │
+                            ▼
+                     Knowledge / Rules
+                            │
+                            ▼
+                     AI Decision
+                            │
+                  ┌─────────┴─────────┐
+                  │                   │
+                  ▼                   ▼
+              Automatic           Human Review
+                  │                   │
+                  └─────────┬─────────┘
+                            ▼
+                         Response
+                            │
+                            ▼
+                         Customer
+```
+
+The crucial point is:
+
+> **A ticket is the unit that enters the support-processing workflow.**
+
+Live chat can exist without a ticket.
+
+Once the customer decides to create a ticket from the live conversation, that conversation becomes context for the ticket.
+
+---
+
+# 2. Customer has two entry points
+
+## A. Ticket
+
+The simple flow:
+
+```text
+Customer
+   │
+   ▼
+Create Ticket
+   │
+   ▼
+Ticket stored
+   │
+   ▼
+AI processes ticket
+```
+
+There is no conversation attached initially.
+
+So conceptually:
+
+```text
+Ticket
+  │
+  └── Conversation = NULL
+```
+
+This matches what you described.
+
+---
+
+## B. Live Chat
+
+The customer starts:
+
+```text
+Customer
+   │
+   ▼
+Live Chat Session
+   │
+   ▼
+Conversation
+   │
+   ├── Customer message
+   ├── AI message
+   ├── Customer message
+   ├── AI message
+   └── ...
+```
+
+At this point:
+
+```text
+Ticket = NULL
+```
+
+The customer can continue talking to the AI without ever creating a ticket.
+
+---
+
+# 3. Live chat → Ticket conversion
+
+This is the interesting part.
+
+Suppose the customer has a conversation:
+
+```text
+Customer:
+My payment isn't working.
+
+AI:
+I can help you troubleshoot that.
+
+Customer:
+I tried everything.
+
+AI:
+Would you like me to create a support ticket?
+
+Customer:
+Yes.
+```
+
+Now:
+
+```text
+Live Chat
+    │
+    ▼
+Create Ticket
+    │
+    ├── Customer
+    ├── Subject
+    ├── Ticket information
+    │
+    └── Existing Conversation
+              │
+              ├── Customer message
+              ├── AI message
+              ├── Customer message
+              └── AI message
+```
+
+The ticket now has the **entire relevant conversation as context**.
+
+Then the normal ticket pipeline starts:
+
+```text
+Ticket
+   │
+   ▼
+AI Analysis
+   │
+   ├── Category
+   ├── Priority
+   ├── Confidence
+   └── Knowledge-based analysis
+             │
+             ▼
+        Decision
+         /     \
+        /       \
+ Automatic     Human
+ Response      Review
+```
+
+This is a very clean design.
+
+---
+
+# 4. There are therefore two states of a conversation
+
+This distinction is useful.
+
+### Conversation without ticket
+
+```text
+Conversation
+    │
+    └── Live Chat
+```
+
+It is an ongoing interaction.
+
+### Conversation attached to ticket
+
+```text
+Conversation
+    │
+    └── Ticket #1234
+```
+
+It becomes supporting context for a formal support case.
+
+So we don't need two completely different message systems.
+
+We have:
+
+```text
+Conversation
+      │
+      ▼
+   Messages
+```
+
+and the conversation can optionally be associated with a ticket.
+
+---
+
+# 5. The important domain entities
+
+Without discussing fields yet, I think our initial table/domain model should be:
+
+```text
+CORE
+│
+├── User
+├── Customer
+├── Support Agent
+└── Ticket
+```
+
+Then:
+
+```text
+CONVERSATION
+│
+├── Conversation
+├── Message
+└── Live Chat Session
+```
+
+Then:
+
+```text
+AI
+│
+├── AI Analysis
+├── AI Decision
+└── AI Response
+```
+
+Then:
+
+```text
+KNOWLEDGE
+│
+├── Knowledge Document
+├── Knowledge Rule
+└── Action Policy
+```
+
+Then:
+
+```text
+HUMAN / ACTION
+│
+├── Review
+├── Action
+└── Audit Log
+```
+
+I would **not necessarily make all of these physical tables yet**. Some may eventually be represented as states or relationships rather than standalone tables.
+
+---
+
+# 6. Let's define the responsibility of each concept
+
+## Customer
+
+The person requesting support.
+
+```text
+Customer
+   │
+   ├── creates Ticket
+   │
+   └── participates in Conversation
+```
+
+---
+
+## Ticket
+
+The formal support case.
+
+It is the thing that goes through the support workflow.
+
+```text
+Ticket
+   │
+   ├── Customer
+   ├── optional Conversation
+   ├── AI Analysis
+   ├── AI Decision
+   ├── Responses
+   └── Status
+```
+
+The ticket exists regardless of whether AI succeeds.
+
+---
+
+## Conversation
+
+A sequence of messages.
+
+```text
+Conversation
+     │
+     └── Messages
+```
+
+It can initially exist independently through live chat.
+
+Later:
+
+```text
+Conversation
+     │
+     └── Ticket
+```
+
+---
+
+## Message
+
+The smallest communication unit.
+
+A message can come from:
+
+```text
+Customer
+AI
+Human Agent
+System
+```
+
+This is important because we don't want separate tables like:
+
+```text
+customer_messages
+ai_messages
+agent_messages
+```
+
+One message model is cleaner.
+
+---
+
+# 7. AI Analysis
+
+This should represent **what AI understood about the ticket**.
+
+For example conceptually:
+
+```text
+AI Analysis
+│
+├── Category
+├── Priority
+├── Confidence
+├── Reasoning / explanation
+└── Knowledge used
+```
+
+The source specifically calls for category, priority, confidence, suggested responses, and traceability of AI decisions. 
+
+---
+
+# 8. AI Decision
+
+This is slightly different from analysis.
+
+Analysis says:
+
+> "What is happening?"
+
+Decision says:
+
+> "What should happen next?"
+
+For example:
+
+```text
+Analysis:
+Category = BILLING
+Priority = HIGH
+Confidence = 0.94
+
+Decision:
+Human review required
+```
+
+Or:
+
+```text
+Analysis:
+Category = GENERAL_INFORMATION
+Priority = LOW
+Confidence = 0.98
+
+Decision:
+Automatic response allowed
+```
+
+This distinction will become very useful later.
+
+---
+
+# 9. Knowledge
+
+Now the AI needs its source of truth.
+
+I would conceptually divide this into:
+
+```text
+Knowledge
+│
+├── Information
+│
+│   ├── Company policies
+│   ├── Product information
+│   ├── Pricing
+│   ├── Troubleshooting
+│   └── Support documentation
+│
+└── Rules
+    │
+    ├── Allowed actions
+    ├── Approval requirements
+    ├── Escalation rules
+    └── AI behavior rules
+```
+
+The source explicitly warns against AI inventing policies and recommends a company knowledge source. 
+
+---
+
+# 10. The AI processing pipeline
+
+Now we can define the actual AI architecture.
+
+```text
+                 TICKET
+                    │
+                    ▼
+             Build AI Context
+                    │
+        ┌───────────┼───────────┐
+        │           │           │
+        ▼           ▼           ▼
+    Ticket       Conversation  Customer
+    Data         History       Context
+        │           │           │
+        └───────────┼───────────┘
+                    ▼
+             Knowledge Search
+                    │
+                    ▼
+              AI Agent
+                    │
+          ┌─────────┼─────────┐
+          ▼         ▼         ▼
+       Category   Priority   Confidence
+          │         │         │
+          └─────────┼─────────┘
+                    ▼
+               AI Analysis
+                    │
+                    ▼
+              Policy Engine
+                    │
+                    ▼
+               AI Decision
+                    │
+             ┌──────┴──────┐
+             ▼             ▼
+        AUTO RESPONSE   HUMAN REVIEW
+             │             │
+             │       Approve/Edit/Reject
+             │             │
+             └──────┬──────┘
+                    ▼
+                 RESPONSE
+```
+
+This is, in my opinion, the **core backend workflow**.
+
+---
+
+# 11. One correction I'd make to our terminology
+
+You said:
+
+> "AI analyzes it with its knowledge model"
+
+I'd avoid calling it the AI's "knowledge model."
+
+The AI model itself doesn't become our company database.
+
+Instead:
+
+```text
+AI Model
+   +
+Company Knowledge
+   +
+Business Rules
+   +
+Conversation Context
+   +
+Ticket Data
+   ↓
+AI Agent
+```
+
+This is much more accurate architecturally.
+
+The company knowledge remains **our application's controlled data**.
+
+The LLM is reasoning over that data.
+
+---
+
+# 12. Automatic response vs human response
+
+The backend should eventually reach a decision like:
+
+```text
+AI Decision
+     │
+     ▼
+Is this action allowed automatically?
+     │
+   ┌─┴─┐
+   │   │
+  YES  NO
+   │   │
+   │   ▼
+   │ Human Review
+   │   │
+   │   ├── Approve
+   │   ├── Edit
+   │   └── Reject
+   │
+   └──────┬──────┘
+          ▼
+       Response
+```
+
+The important thing is that **the AI shouldn't directly bypass the policy system**.
+
+The rules determine whether an action requires human approval.
+
+---
+
+# 13. Where Live Chat fits
+
+The live chat does **not** need a completely separate AI architecture.
+
+It simply uses the same agent.
+
+During live chat:
+
+```text
+Customer
+   │
+   ▼
+Message
+   │
+   ▼
+Conversation
+   │
+   ▼
+AI Agent
+   │
+   ├── Knowledge
+   ├── Rules
+   └── Conversation context
+   │
+   ▼
+AI Message
+   │
+   ▼
+Conversation
+```
+
+When the customer creates a ticket:
+
+```text
+Conversation
+      │
+      │ attach
+      ▼
+    Ticket
+      │
+      ▼
+Same AI Processing Pipeline
+```
+
+That's the major architectural advantage of your idea.
+
+---
+
+# 14. Final architecture at this stage
+
+So I would currently draw the backend like this:
+
+```text
+                         CUSTOMER
+                            │
+               ┌────────────┴────────────┐
+               │                         │
+               ▼                         ▼
+           LIVE CHAT                  TICKET
+               │                         │
+               ▼                         │
+         CONVERSATION                    │
+               │                         │
+               │ Create Ticket           │
+               └───────────┬─────────────┘
+                           ▼
+                         TICKET
+                           │
+                           ▼
+                  ┌─────────────────┐
+                  │  AI PROCESSING  │
+                  └────────┬────────┘
+                           │
+              ┌────────────┼────────────┐
+              │            │            │
+              ▼            ▼            ▼
+          Ticket       Conversation   Customer
+           Data           Data         Context
+              │            │            │
+              └────────────┼────────────┘
+                           ▼
+                    KNOWLEDGE SYSTEM
+                           │
+                  ┌────────┴────────┐
+                  │                 │
+             Information          Rules
+                  │                 │
+                  └────────┬────────┘
+                           ▼
+                       AI AGENT
+                           │
+                           ▼
+                      AI ANALYSIS
+                           │
+             ┌─────────────┼─────────────┐
+             ▼             ▼             ▼
+          Category       Priority     Confidence
+                           │
+                           ▼
+                     AI DECISION
+                           │
+                    ┌──────┴──────┐
+                    │             │
+                    ▼             ▼
+                 AUTO          HUMAN
+                RESPONSE       REVIEW
+                    │             │
+                    │       ┌─────┼─────┐
+                    │       ▼     ▼     ▼
+                    │    Approve Edit Reject
+                    │       │
+                    └───────┬┘
+                            ▼
+                         RESPONSE
+                            │
+                            ▼
+                         CUSTOMER
+```
+
+And underneath that:
+
+```text
+                  DATABASE
+                     │
+     ┌───────────────┼────────────────┐
+     │               │                │
+     ▼               ▼                ▼
+ CORE TABLES    CONVERSATION      KNOWLEDGE
+     │               │                │
+     ├─ Customer     ├─ Conversation  ├─ Documents
+     ├─ User         ├─ Message       ├─ Rules
+     ├─ Agent        └─ Chat Session  └─ Policies
+     └─ Ticket
+```
+
+Then the AI/human side:
+
+```text
+AI / OPERATIONS
+│
+├── AI Analysis
+├── AI Decisions
+├── Human Reviews
+├── Actions
+└── Audit Logs
+```
+
+---
+
+## One final architectural decision I'd make now
+
+**Don't make `chat = NULL` conceptually mean "there was no conversation."**
+
+Instead, think:
+
+```text
+Ticket
+   │
+   └── conversation_id = NULL
+```
+
+means:
+
+> This ticket originated directly from the ticket system.
+
+Whereas:
+
+```text
+Ticket
+   │
+   └── conversation_id = 123
+```
+
+means:
+
+> This ticket originated from/escalated from a live conversation, and conversation 123 is part of its context.
+
+That gives us exactly the two flows you want without duplicating the backend.
+
+So I think we have now reached a good **domain-level architecture**. The next step should be to take this diagram and turn it into a **proper domain relationship model**—essentially deciding exactly how `Ticket`, `Conversation`, `Message`, `AI Analysis`, `AI Decision`, `Knowledge`, `Policy`, `Human Review`, and `Action` relate to each other—**still without worrying about individual database columns**.

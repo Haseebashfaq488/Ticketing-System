@@ -1,0 +1,1013 @@
+Yes. I read the entire interns-project.md. This is essentially a full-stack AI customer-support system assignment, but the important part is that it is not just asking you to build a ticketing website.
+
+The project is testing whether your team can design, integrate, and understand an AI-powered software system.
+
+1. What are you actually supposed to build?
+
+Think of the final product like this:
+
+                    CUSTOMER
+                       │
+                       ▼
+              ┌─────────────────┐
+              │ Support Request │
+              │ Name            │
+              │ Email           │
+              │ Subject         │
+              │ Message         │
+              └────────┬────────┘
+                       │
+                       ▼
+                ┌──────────────┐
+                │   Supabase   │
+                │  Database    │
+                └──────┬───────┘
+                       │
+                       ▼
+              ┌──────────────────┐
+              │    AI SYSTEM     │
+              │                  │
+              │ Understand       │
+              │ Categorize       │
+              │ Prioritize       │
+              │ Draft response   │
+              └────────┬─────────┘
+                       │
+                 ┌─────┴─────┐
+                 │           │
+             Safe/simple   Sensitive/
+                 │          uncertain
+                 ▼           ▼
+             AI action    HUMAN REVIEW
+                 │           │
+                 └─────┬─────┘
+                       ▼
+                Support Agent
+                  Dashboard
+                       │
+                       ▼
+                    Resend
+                       │
+                       ▼
+                   CUSTOMER
+
+So your application is basically:
+
+A customer-support ticketing system with an AI agent that analyzes incoming tickets, assists support staff, and can take approved actions.
+
+⸻
+
+2. There are 8 major requirements
+
+The document can look overwhelming, but it really breaks down into these parts:
+
+A. Customer support form
+
+Customer enters:
+
+* Name
+* Email
+* Subject
+* Message
+
+Then submits it.
+
+They receive:
+
+“Your support request has been received.”
+
+That email must be sent using Resend.
+
+⸻
+
+B. Support dashboard
+
+Your staff needs an internal dashboard.
+
+Something like:
+
+---------------------------------------------------
+ Support Dashboard
+ Tickets
+ --------------------------------------------------
+ #1042  Login problem       URGENT       Open
+ #1041  Refund question     HIGH         Pending
+ #1040  Feature request     LOW          Open
+ #1039  Can't access app    MEDIUM       Resolved
+ --------------------------------------------------
+
+Clicking a ticket opens:
+
+Customer:
+John Doe
+john@gmail.com
+Subject:
+I can't access my account
+Message:
+I've tried resetting my password...
+AI Analysis:
+Category: Account Access
+Priority: High
+Confidence: 94%
+AI Suggested Response:
+...
+Status:
+Pending Human Review
+[Approve & Send]
+[Edit Response]
+[Reject]
+
+This is the core application.
+
+⸻
+
+3. The AI is not just a chatbot
+
+This is very important.
+
+Your teacher explicitly says:
+
+AI must be a meaningful part of the product.
+
+So don’t build:
+
+Ticket → ChatGPT → response
+
+and call it AI integration.
+
+Instead, your AI should perform several tasks.
+
+When a ticket arrives:
+
+1. Understand it
+
+Example:
+
+“I paid for premium but my account still says free.”
+
+AI understands:
+
+Intent:
+Payment/subscription problem
+
+2. Categorize it
+
+For example:
+
+Category:
+Billing
+
+Possible categories:
+
+ACCOUNT
+BILLING
+TECHNICAL
+REFUND
+FEATURE_REQUEST
+SECURITY
+OTHER
+
+3. Determine urgency
+
+For example:
+
+Priority: HIGH
+Reason:
+Customer has paid but cannot access purchased service.
+
+4. Generate a suggested response
+
+For example:
+
+Hi John,
+Thanks for contacting us. I understand that you've
+completed your payment but your account still shows
+the free plan...
+Regards,
+Support Team
+
+But here’s the important part.
+
+⸻
+
+4. AI must NOT blindly answer everything
+
+This is one of the most important requirements.
+
+Suppose the customer says:
+
+“I want a refund.”
+
+Your AI shouldn’t invent:
+
+“Sure, our refund policy allows refunds within 30 days.”
+
+What if your company doesn’t have a 30-day refund policy?
+
+The assignment explicitly says AI must not invent company policies, prices, refund rules, etc.
+
+So you need some kind of company knowledge source.
+
+For example:
+
+Company Knowledge
+│
+├── Refund policy
+├── Pricing
+├── Subscription policy
+├── Account policy
+├── Technical troubleshooting
+└── Support guidelines
+
+The AI can only use information supplied by your system.
+
+This is where you can make the project significantly better.
+
+⸻
+
+5. You need a Human-in-the-Loop system
+
+Not every ticket should be automatically handled.
+
+You should design rules such as:
+
+Automatically handled
+
+"What are your opening hours?"
+→ AI answers
+→ Send automatically
+
+Human approval required
+
+"I want a refund."
+→ AI analyzes
+→ AI drafts response
+→ Human reviews
+→ Human approves
+→ Email sent
+
+Definitely human
+
+"I think someone hacked my account."
+→ HIGH/CRITICAL
+→ AI does NOT automatically respond
+→ Human support required
+
+This gives you a very good architecture:
+
+                AI
+                 │
+       ┌─────────┴─────────┐
+       │                   │
+   Low Risk            High Risk
+       │                   │
+       ▼                   ▼
+Automatic             Human Review
+Response                  │
+                          ▼
+                    Approve / Edit
+                          │
+                          ▼
+                         Send
+
+⸻
+
+6. You MUST build an AI Agent
+
+This is different from simply calling an LLM API.
+
+Your project needs at least one AI agent.
+
+For example, create a:
+
+SupportAgent
+
+It could have tools such as:
+
+get_ticket()
+search_company_knowledge()
+get_customer_history()
+update_ticket_status()
+draft_response()
+send_email()
+
+The agent receives:
+
+Ticket #1042
+Customer information
+Conversation history
+Company policies
+
+and decides what it needs to do.
+
+For example:
+
+SupportAgent
+1. Read ticket
+2. Understand issue
+3. Search company knowledge
+4. Determine category
+5. Determine priority
+6. Draft response
+7. Decide whether human approval is required
+8. If approved → send response
+
+That is a meaningful agent.
+
+⸻
+
+7. Agent Skill
+
+This is another requirement that could easily be misunderstood.
+
+You need to create at least one reusable Agent Skill.
+
+Think of a Skill as a reusable set of specialized instructions/knowledge.
+
+For example:
+
+CustomerSupportSkill
+
+Purpose:
+Handle incoming customer support requests.
+Rules:
+1. Never invent company policies.
+2. Always search company knowledge before
+   answering policy-related questions.
+3. Refund requests require human approval.
+4. Security-related issues require human review.
+5. Never send an email without approval for
+   sensitive actions.
+6. If confidence is low, escalate to human support.
+
+Then your agent can use this Skill.
+
+The assignment specifically wants you to understand why this is separate from one giant prompt.
+
+⸻
+
+8. MCP is another major requirement
+
+This is probably the most unfamiliar part if you haven’t worked with MCP before.
+
+You need to expose at least 3 useful capabilities through an MCP server.
+
+For example:
+
+                 MCP SERVER
+                     │
+       ┌─────────────┼─────────────┐
+       │             │             │
+       ▼             ▼             ▼
+ get_ticket()   search_tickets()  update_ticket()
+
+An external AI client connected to your MCP server could then say:
+
+“Show me all urgent unresolved tickets.”
+
+and use:
+
+search_tickets(
+    status="open",
+    priority="urgent"
+)
+
+Or:
+
+“Show me ticket #1042.”
+
+→
+
+get_ticket(1042)
+
+You could expose:
+
+Tool 1
+
+get_support_ticket
+
+Read-only.
+
+Tool 2
+
+search_support_tickets
+
+Read-only.
+
+Tool 3
+
+update_ticket_status
+
+Write operation.
+
+Potentially:
+
+Tool 4
+
+get_customer_history
+
+Read-only.
+
+Tool 5
+
+draft_support_response
+
+AI operation.
+
+Tool 6
+
+send_support_response
+
+Dangerous/write operation → should require appropriate authorization/approval.
+
+This distinction between read-only and action tools is something you’ll likely be questioned about.
+
+⸻
+
+9. Supabase
+
+Supabase becomes your backend/database.
+
+A reasonable starting schema might be:
+
+customers
+    │
+    └──── support_tickets
+                │
+                ├──── ticket_messages
+                │
+                ├──── ai_analyses
+                │
+                └──── activity_logs
+
+For example:
+
+customers
+
+id
+name
+email
+created_at
+
+support_tickets
+
+id
+customer_id
+subject
+status
+priority
+category
+created_at
+updated_at
+
+ticket_messages
+
+id
+ticket_id
+sender_type
+message
+created_at
+
+Where:
+
+sender_type =
+customer
+agent
+ai
+
+ai_analyses
+
+id
+ticket_id
+category
+priority
+confidence
+reasoning_summary
+suggested_response
+created_at
+
+activity_logs
+
+id
+ticket_id
+actor
+action
+details
+created_at
+
+The last table is particularly useful for the AI transparency requirement.
+
+⸻
+
+10. AI transparency
+
+Suppose AI decides:
+
+Priority = HIGH
+
+Your system shouldn’t just store:
+
+priority = HIGH
+
+You should preserve something like:
+
+AI Decision
+Category:
+Billing
+Priority:
+HIGH
+Confidence:
+0.91
+Reason:
+Customer reports a payment completed but
+service access has not been granted.
+Model:
+...
+Timestamp:
+...
+
+Then a support employee can understand:
+
+Why did AI mark this ticket as urgent?
+
+That’s exactly what the assignment means by traceability.
+
+⸻
+
+11. Resend
+
+Resend handles your emails.
+
+You need at least:
+
+Email #1
+
+Customer submits ticket:
+
+Subject: We received your support request
+Hi John,
+We've received your support request.
+Ticket ID: #1042
+Our support team will review it shortly.
+
+Email #2
+
+Support responds:
+
+Subject: Re: Your support request #1042
+Hi John,
+...
+Regards,
+Support Team
+
+And you need to think about:
+
+What if email fails?
+What if the button is clicked twice?
+What if the server retries?
+
+You don’t need a massive distributed-systems solution.
+
+But you should prevent obvious duplicate emails.
+
+⸻
+
+12. GitHub is actually part of your grade
+
+This isn’t:
+
+“Build something and upload it to GitHub.”
+
+They specifically want a proper team workflow.
+
+Three developers:
+
+main
+ │
+ ├── feature/customer-support
+ ├── feature/ai-agent
+ └── feature/mcp-server
+
+Developer works on branch:
+
+feature/ai-agent
+
+Then:
+
+Commit
+   ↓
+Push
+   ↓
+Pull Request
+   ↓
+Another team member reviews
+   ↓
+Merge
+
+Nobody should merge their own meaningful PR without another member reviewing it.
+
+They also want meaningful commits from all three people.
+
+⸻
+
+13. AI_DECISIONS.md
+
+This is actually a clever requirement.
+
+They don’t want:
+
+“We used ChatGPT.”
+
+They want evidence that you critically evaluated AI-generated code/designs.
+
+For example:
+
+AI Decision #1
+AI suggested storing the entire customer conversation
+inside the support_tickets table.
+We rejected this because conversations are naturally
+one-to-many and should be stored separately in
+ticket_messages.
+
+Another:
+
+AI Decision #2
+AI suggested allowing the agent to automatically
+send refund responses.
+We rejected this because refund-related actions
+require human approval.
+
+Another:
+
+AI Decision #3
+AI suggested exposing a send_email MCP tool without
+authorization.
+We rejected this because it could allow an external
+AI client to send unauthorized messages.
+
+These would be excellent examples.
+
+⸻
+
+14. Failure handling
+
+They will probably intentionally ask about this during the presentation.
+
+You need to consider:
+
+Customer submits invalid email
+        ↓
+Validation error
+LLM returns malformed JSON
+        ↓
+Validate output
+        ↓
+Retry / mark AI failed
+        ↓
+Human review
+Resend fails
+        ↓
+Don't mark email as successfully sent
+        ↓
+Record failure
+        ↓
+Allow retry
+AI confidence < threshold
+        ↓
+Human review
+Unauthorized user
+        ↓
+Reject request
+
+This is why this is more than just a CRUD application.
+
+⸻
+
+15. What I would recommend you build
+
+If I were designing this project for your team, I’d make the architecture roughly:
+
+                    ┌───────────────┐
+                    │   Customer    │
+                    └───────┬───────┘
+                            │
+                            ▼
+                    ┌───────────────┐
+                    │ Support Form  │
+                    └───────┬───────┘
+                            │
+                            ▼
+                    ┌───────────────┐
+                    │   Backend     │
+                    └───────┬───────┘
+                            │
+              ┌─────────────┼─────────────┐
+              ▼             ▼             ▼
+         Supabase        AI Agent       Resend
+              │             │             │
+              │             ▼             │
+              │      Company Knowledge    │
+              │             │             │
+              │             ▼             │
+              │      AI Analysis          │
+              │             │             │
+              │      ┌──────┴──────┐      │
+              │      ▼             ▼      │
+              │  Auto Handle    Human     │
+              │                 Review     │
+              │                    │       │
+              └────────────┬───────┘       │
+                           ▼               │
+                    Support Dashboard      │
+                           │               │
+                           └───────┬───────┘
+                                   ▼
+                                Resend
+
+And separately:
+
+             External AI Client
+                    │
+                    ▼
+                MCP Server
+                    │
+          ┌─────────┼─────────┐
+          ▼         ▼         ▼
+      Get Ticket  Search   Update
+                 Tickets   Ticket
+
+⸻
+
+16. Suggested tech stack
+
+Since you’re already working with web development, I would keep the stack relatively simple.
+
+Frontend
+
+React / Next.js
+
+Backend
+
+FastAPI or Next.js API routes.
+
+Since you’ve worked with FastAPI before, FastAPI would be a reasonable choice.
+
+Database
+
+Supabase PostgreSQL
+
+Authentication
+
+Supabase Auth
+
+Email
+
+Resend
+
+AI
+
+An LLM API of your choice.
+
+Agent
+
+Use an agent framework/SDK that your team can actually explain, rather than adding a complicated framework just for the sake of it.
+
+MCP
+
+A dedicated MCP server exposing your support-system operations.
+
+Deployment
+
+For example:
+
+Frontend → Vercel
+Backend → Render/Railway/etc.
+Database → Supabase
+Email → Resend
+MCP → deployed backend/service
+
+The exact providers aren’t mandated, so choose based on what your team can confidently maintain.
+
+⸻
+
+17. How I would divide the 3-person team
+
+Don’t divide it as:
+
+Person 1 frontend, Person 2 backend, Person 3 AI.
+
+That can create three isolated developers who don’t understand the whole system.
+
+Instead:
+
+Developer 1 — Application/Core
+
+Owns:
+
+* Customer form
+* Dashboard
+* Ticket management
+* Authentication
+* Supabase integration
+
+Developer 2 — AI/Agent
+
+Owns:
+
+* AI classification
+* Priority detection
+* Response generation
+* Company knowledge
+* Agent
+* Agent Skill
+* Human approval logic
+
+Developer 3 — Integration/Infrastructure
+
+Owns:
+
+* MCP server
+* Resend
+* Email reliability
+* Activity logging
+* Deployment
+* CI/GitHub workflow
+* Security
+
+But all three should review each other’s work and understand the architecture.
+
+⸻
+
+18. What you should NOT do
+
+There are several traps in this assignment.
+
+❌ Don’t build a beautiful UI first
+
+The document explicitly says visual appearance isn’t the priority.
+
+❌ Don’t make AI a simple chatbot
+
+The AI needs to actually participate in the support workflow.
+
+❌ Don’t let AI invent policies
+
+This is explicitly prohibited.
+
+❌ Don’t give the agent unrestricted database access
+
+Give it specific tools with controlled permissions.
+
+❌ Don’t expose dangerous MCP tools without thinking about authorization
+
+Especially things like:
+
+send_email()
+delete_ticket()
+refund_customer()
+
+❌ Don’t blindly copy AI-generated code
+
+You’ll be questioned individually.
+
+❌ Don’t let everyone commit using one account
+
+They explicitly want meaningful contributions from all three members.
+
+⸻
+
+19. What I think the actual objective of the assignment is
+
+The teacher is essentially testing this:
+
+Can you build a real software system where AI is an actual controlled component rather than just an API call?
+
+They’re checking whether you understand:
+
+Frontend
+   ↓
+Backend
+   ↓
+Database
+   ↓
+AI
+   ↓
+Agent
+   ↓
+Tools
+   ↓
+Human approval
+   ↓
+External services
+   ↓
+Failure handling
+   ↓
+Deployment
+
+And then:
+
+Can you explain every part when the AI is no longer there to answer for you?
+
+That’s why the individual questioning is important.
+
+⸻
+
+20. What we should do next
+
+I would not start coding yet.
+
+First, your team should produce these things:
+
+Phase 1 — Understand & design
+
+1. Define exactly what the product does.
+2. Define ticket lifecycle.
+3. Define database schema.
+4. Define AI responsibilities.
+5. Define human-approval rules.
+6. Define Agent.
+7. Define Agent Skill.
+8. Define MCP tools.
+9. Define security/permissions.
+10. Define failure handling.
+
+Phase 2 — Architecture
+
+Create:
+
+SYSTEM_ARCHITECTURE.md
+
+with the complete architecture and decisions.
+
+Phase 3 — GitHub
+
+Create repository and establish:
+
+main
+develop/feature branches
+PR rules
+review process
+issue tracking
+
+Phase 4 — Build MVP
+
+First make:
+
+Customer
+   ↓
+Submit Ticket
+   ↓
+Supabase
+   ↓
+Dashboard
+   ↓
+View Ticket
+
+Then add AI.
+
+Phase 5 — AI
+
+Add:
+
+Classification
+Priority
+Confidence
+Response generation
+Knowledge retrieval
+Human approval
+
+Phase 6 — Agent + Skill
+
+Then build the actual agent and reusable Skill.
+
+Phase 7 — MCP
+
+Expose 3+ meaningful tools.
+
+Phase 8 — Resend + reliability
+
+Add confirmation and support emails, retries/error handling, and duplicate protection.
+
+Phase 9 — Deployment
+
+Deploy the whole system.
+
+Phase 10 — Presentation preparation
+
+Each of the three members should be able to explain:
+
+Architecture
+Database
+AI
+Agent
+Skill
+MCP
+Security
+Failures
+GitHub workflow
+
+⸻
+
+My recommendation: treat this as a small production-style AI support platform, not as a university CRUD project. If you design the architecture correctly first, the actual coding becomes much easier.
+
+And there are three particularly important things we should design next: the complete architecture, the Supabase database schema, and the AI Agent + Skill + MCP design. Those three decisions will determine almost everything else in the project.
