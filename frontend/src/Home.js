@@ -3,30 +3,26 @@ function Home({ onSelect }) {
     {
       name: 'ApexTech Solutions',
       category: 'Cloud Infrastructure',
-      rating: '4.9 ★',
+      rating: '4.9',
       ticketsResolved: '1,420+',
-      icon: '⚡',
     },
     {
       name: 'Global Logistics Hub',
       category: 'Supply Chain & Freight',
-      rating: '4.8 ★',
+      rating: '4.8',
       ticketsResolved: '3,890+',
-      icon: '📦',
     },
     {
       name: 'Nova Retail Group',
       category: 'E-Commerce Platform',
-      rating: '5.0 ★',
+      rating: '5.0',
       ticketsResolved: '850+',
-      icon: '🛍️',
     },
     {
       name: 'CloudScale AI',
       category: 'Enterprise SaaS',
-      rating: '4.9 ★',
+      rating: '4.9',
       ticketsResolved: '2,100+',
-      icon: '🤖',
     },
   ];
 
@@ -35,7 +31,7 @@ function Home({ onSelect }) {
       {/* Hero Section */}
       <div className="hero-section">
         <div className="badge-pill">
-          ✨ Next-Gen AI Support & Ticket Orchestration
+          Enterprise AI Support & Ticket Orchestration
         </div>
 
         <h1 className="hero-title">
@@ -49,13 +45,13 @@ function Home({ onSelect }) {
 
         <div className="hero-ctas">
           <button className="btn primary" onClick={() => onSelect('ticket')}>
-            🎫 Create Support Ticket
+            Submit Support Ticket
           </button>
           <button className="btn secondary" onClick={() => onSelect('chat')}>
-            💬 Start Live Chat
+            Start Live Chat
           </button>
           <button className="btn secondary" onClick={() => onSelect('dashboard')}>
-            📊 Support Dashboard
+            Support Dashboard
           </button>
         </div>
       </div>
@@ -63,16 +59,20 @@ function Home({ onSelect }) {
       {/* Featured Listed Businesses Section */}
       <div style={{ marginTop: '56px' }}>
         <h2 className="section-title">
-          🏢 Listed Enterprise Businesses
+          Listed Enterprise Businesses
         </h2>
         <p className="section-desc">
-          Top platforms utilizing our unified AI ticketing & resolution platform.
+          Top platforms utilizing our unified AI ticketing and resolution platform.
         </p>
 
         <div className="business-grid">
           {listedBusinesses.map((biz, idx) => (
             <div key={idx} className="business-card">
-              <div className="business-icon">{biz.icon}</div>
+              <div className="business-icon">
+                <svg className="icon-svg large" viewBox="0 0 24 24">
+                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                </svg>
+              </div>
               <div>
                 <h3 className="business-name">{biz.name}</h3>
                 <span className="business-tag">{biz.category}</span>
@@ -87,7 +87,7 @@ function Home({ onSelect }) {
                   marginTop: '8px',
                 }}
               >
-                <span>Rating: <strong style={{ color: 'var(--accent-amber)' }}>{biz.rating}</strong></span>
+                <span>Rating: <strong style={{ color: 'var(--accent-amber)' }}>{biz.rating} / 5.0</strong></span>
                 <span>{biz.ticketsResolved} Resolved</span>
               </div>
             </div>
@@ -98,7 +98,7 @@ function Home({ onSelect }) {
       {/* Subscription Pricing Panel */}
       <div style={{ marginTop: '72px' }}>
         <div style={{ textAlign: 'center', marginBottom: '36px' }}>
-          <span className="badge-pill">💎 Flexible Plans</span>
+          <span className="badge-pill">Flexible Pricing</span>
           <h2 style={{ fontSize: '36px', fontWeight: '900', margin: '10px 0' }}>
             Choose Your <span className="grad-text">Subscription Tier</span>
           </h2>
@@ -132,7 +132,7 @@ function Home({ onSelect }) {
 
           {/* Gold Tier (Featured) */}
           <div className="pricing-card featured">
-            <div className="popular-badge">🔥 Most Popular</div>
+            <div className="popular-badge">Most Popular</div>
             <div>
               <h3 className="plan-name" style={{ color: 'var(--accent-amber)' }}>Gold Pro</h3>
               <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
@@ -150,7 +150,7 @@ function Home({ onSelect }) {
             </ul>
 
             <button className="btn primary" onClick={() => onSelect('profile')}>
-              Subscribe to Gold ⭐
+              Subscribe to Gold Plan
             </button>
           </div>
 

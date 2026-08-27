@@ -99,7 +99,7 @@ function TicketDetail({ ticketId, onBack }) {
 
       {/* Discussion Timeline */}
       <h3 style={{ fontSize: '18px', fontWeight: '800', marginBottom: '14px' }}>
-        💬 Activity & Discussion Thread
+        Activity & Discussion Thread
       </h3>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '24px' }}>

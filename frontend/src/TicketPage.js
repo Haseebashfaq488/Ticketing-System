@@ -27,7 +27,12 @@ function TicketPage({ user, onGoChat }) {
 
       {submitted ? (
         <div className="card animate-fade-in" style={{ textAlign: 'center', padding: '48px 32px' }}>
-          <div style={{ fontSize: '56px', marginBottom: '16px' }}>🎉</div>
+          <div style={{ marginBottom: '16px' }}>
+            <svg className="icon-svg" style={{ width: '48px', height: '48px', color: 'var(--accent-emerald)' }} viewBox="0 0 24 24">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+              <polyline points="22 4 12 14.01 9 11.01" />
+            </svg>
+          </div>
           <h2 style={{ fontSize: '24px', fontWeight: '800', margin: '0 0 10px' }}>
             Ticket Submitted Successfully!
           </h2>
@@ -40,7 +45,7 @@ function TicketPage({ user, onGoChat }) {
               Submit Another Ticket
             </button>
             <button className="btn secondary" onClick={onGoChat}>
-              💬 Talk to Live AI Assistant
+              Talk to Live AI Assistant
             </button>
           </div>
         </div>
@@ -121,7 +126,7 @@ function TicketPage({ user, onGoChat }) {
                 className="btn secondary"
                 style={{ width: '100%', borderStyle: 'dashed', cursor: 'pointer' }}
               >
-                📎 {attachedFile ? attachedFile.name : 'Upload Screenshot / Log File'}
+                {attachedFile ? attachedFile.name : 'Upload Screenshot / Log File'}
                 <input
                   type="file"
                   style={{ display: 'none' }}
@@ -131,7 +136,7 @@ function TicketPage({ user, onGoChat }) {
             </div>
 
             <button type="submit" className="btn primary" style={{ width: '100%', padding: '14px' }}>
-              🚀 Submit Ticket & Run AI Analysis
+              Submit Ticket & Run AI Analysis
             </button>
           </form>
         </div>

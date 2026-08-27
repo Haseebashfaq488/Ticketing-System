@@ -78,14 +78,18 @@ function Dashboard({ user, onSelectTicket }) {
         </div>
 
         <button className="btn primary" onClick={() => onSelectTicket('TCK-8901')}>
-          ⚡ Inspect High Priority Ticket
+          Inspect High Priority Ticket
         </button>
       </div>
 
       {/* Stats Widgets */}
       <div className="stats-grid">
         <div className="stat-card">
-          <div className="stat-icon">🎫</div>
+          <div className="stat-icon">
+            <svg className="icon-svg large" viewBox="0 0 24 24">
+              <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+            </svg>
+          </div>
           <div>
             <div className="stat-value">124</div>
             <div className="stat-label">Total Tickets Today</div>
@@ -93,7 +97,11 @@ function Dashboard({ user, onSelectTicket }) {
         </div>
 
         <div className="stat-card">
-          <div className="stat-icon">⚡</div>
+          <div className="stat-icon">
+            <svg className="icon-svg large" viewBox="0 0 24 24">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+            </svg>
+          </div>
           <div>
             <div className="stat-value" style={{ color: 'var(--accent-cyan)' }}>1.2 min</div>
             <div className="stat-label">Avg AI Response Time</div>
@@ -101,7 +109,12 @@ function Dashboard({ user, onSelectTicket }) {
         </div>
 
         <div className="stat-card">
-          <div className="stat-icon">✅</div>
+          <div className="stat-icon">
+            <svg className="icon-svg large" viewBox="0 0 24 24">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+              <polyline points="22 4 12 14.01 9 11.01" />
+            </svg>
+          </div>
           <div>
             <div className="stat-value" style={{ color: 'var(--accent-emerald)' }}>94.8%</div>
             <div className="stat-label">Resolution Rate</div>
@@ -109,7 +122,14 @@ function Dashboard({ user, onSelectTicket }) {
         </div>
 
         <div className="stat-card">
-          <div className="stat-icon">⭐</div>
+          <div className="stat-icon">
+            <svg className="icon-svg large" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M8 14s1.5 2 4 2 4-2 4-2" />
+              <line x1="9" y1="9" x2="9.01" y2="9" />
+              <line x1="15" y1="9" x2="15.01" y2="9" />
+            </svg>
+          </div>
           <div>
             <div className="stat-value" style={{ color: 'var(--accent-amber)' }}>4.92 / 5</div>
             <div className="stat-label">CSAT Score</div>
@@ -135,7 +155,7 @@ function Dashboard({ user, onSelectTicket }) {
           <input
             type="text"
             className="input-field"
-            placeholder="🔍 Search tickets by subject or customer email..."
+            placeholder="Search tickets by subject or customer email..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             style={{ maxWidth: '320px' }}
@@ -162,7 +182,7 @@ function Dashboard({ user, onSelectTicket }) {
                 <td>
                   <div style={{ fontWeight: '600' }}>{t.subject}</div>
                   <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                    🤖 {t.aiDiagnosis}
+                    AI Summary: {t.aiDiagnosis}
                   </div>
                 </td>
                 <td>

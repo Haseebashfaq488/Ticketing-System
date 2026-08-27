@@ -57,7 +57,7 @@ function ChatPage({ user, onGoTicket, onSelectTicket }) {
           Live Support <span className="grad-text">Messaging Chat</span>
         </h1>
         <p style={{ color: 'var(--text-secondary)', margin: 0 }}>
-          Real-time AI customer assistant connected to company knowledge base.
+          Real-time AI customer assistant connected to enterprise knowledge base.
         </p>
       </div>
 
@@ -65,7 +65,7 @@ function ChatPage({ user, onGoTicket, onSelectTicket }) {
         {/* Left Sidebar: Active Conversations */}
         <div className="chat-sidebar">
           <div style={{ fontWeight: '700', fontSize: '14px', marginBottom: '8px' }}>
-            💬 Active Sessions
+            Active Sessions
           </div>
 
           <div className="chat-thread-list">
@@ -116,9 +116,10 @@ function ChatPage({ user, onGoTicket, onSelectTicket }) {
                   justifyContent: 'center',
                   color: '#fff',
                   fontWeight: '800',
+                  fontSize: '12px',
                 }}
               >
-                🤖
+                AI
               </div>
               <div>
                 <div style={{ fontWeight: '700', fontSize: '15px' }}>Nova Support Agent</div>
@@ -129,7 +130,7 @@ function ChatPage({ user, onGoTicket, onSelectTicket }) {
             </div>
 
             <button className="btn secondary small-btn" onClick={onGoTicket}>
-              🎫 Convert to Ticket
+              Convert to Ticket
             </button>
           </div>
 
@@ -153,7 +154,7 @@ function ChatPage({ user, onGoTicket, onSelectTicket }) {
 
             {isTyping && (
               <div className="message-bubble bot" style={{ fontStyle: 'italic', opacity: 0.8 }}>
-                🤖 AI Assistant is typing a response...
+                AI Assistant is typing a response...
               </div>
             )}
           </div>
@@ -175,7 +176,7 @@ function ChatPage({ user, onGoTicket, onSelectTicket }) {
                 style={{ fontSize: '12px', whiteSpace: 'nowrap', border: '1px solid var(--border-color)' }}
                 onClick={() => handleSend(p)}
               >
-                💡 {p}
+                {p}
               </button>
             ))}
           </div>
@@ -191,7 +192,7 @@ function ChatPage({ user, onGoTicket, onSelectTicket }) {
               onKeyDown={(e) => e.key === 'Enter' && handleSend()}
             />
             <button className="btn primary" onClick={() => handleSend()}>
-              Send 🚀
+              Send Message
             </button>
           </div>
         </div>
@@ -199,7 +200,7 @@ function ChatPage({ user, onGoTicket, onSelectTicket }) {
         {/* Right Sidebar: Context Panel */}
         <div className="chat-sidebar">
           <div style={{ fontWeight: '700', fontSize: '14px', marginBottom: '8px' }}>
-            ℹ️ Session Info
+            Session Details
           </div>
           <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
             User Email: <br />
@@ -209,7 +210,7 @@ function ChatPage({ user, onGoTicket, onSelectTicket }) {
           </div>
           <hr style={{ borderColor: 'var(--border-color)', width: '100%' }} />
           <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-            🔒 All live chat conversations are encrypted and audited for support compliance.
+            All live chat conversations are encrypted and audited for support compliance.
           </div>
         </div>
       </div>

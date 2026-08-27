@@ -87,7 +87,10 @@ function ProfilePage({ user, currentAvatar, onUpdateAvatar }) {
               title="Change Profile Picture"
               onClick={() => setShowAvatarPicker(!showAvatarPicker)}
             >
-              📷
+              <svg className="icon-svg" viewBox="0 0 24 24">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                <circle cx="12" cy="13" r="4" />
+              </svg>
             </button>
           </div>
 
@@ -110,7 +113,7 @@ function ProfilePage({ user, currentAvatar, onUpdateAvatar }) {
                 boxShadow: 'var(--shadow-glow-gold)',
               }}
             >
-              ⭐ Gold Plan Member
+              Gold Plan Member
             </span>
           </div>
 
@@ -145,7 +148,7 @@ function ProfilePage({ user, currentAvatar, onUpdateAvatar }) {
                   className="btn secondary small-btn"
                   style={{ width: '100%', cursor: 'pointer' }}
                 >
-                  📁 Upload Custom Photo
+                  Upload Custom Photo
                   <input
                     type="file"
                     accept="image/*"
@@ -239,7 +242,7 @@ function ProfilePage({ user, currentAvatar, onUpdateAvatar }) {
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '12px' }}>
               <button type="submit" className="btn primary">
-                💾 Save Profile Changes
+                Save Profile Changes
               </button>
             </div>
           </form>
