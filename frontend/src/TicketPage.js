@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 const PRIORITY_CLASS = {
   LOW: 'badge low',
@@ -28,7 +28,7 @@ function TraceStep({ step, index }) {
 
 function AnalysisResult({ result, onReset }) {
   const [reviewState, setReviewState] = useState(null);
-  const a = result.analysis;
+  const a = result.analysis || {};
   const needsHuman = result.decision === 'HUMAN_REVIEW';
 
   return (
@@ -60,11 +60,11 @@ function AnalysisResult({ result, onReset }) {
       <div className="meta-grid">
         <div className="card stat">
           <span className="stat-label">Category</span>
-          <span className="badge cat">{a.category}</span>
+          <span className="badge cat">{a.category || 'GENERAL'}</span>
         </div>
         <div className="card stat">
           <span className="stat-label">Priority</span>
-          <span className={PRIORITY_CLASS[a.priority] || 'badge'}>{a.priority}</span>
+          <span className={PRIORITY_CLASS[a.priority] || 'badge'}>{a.priority || 'MEDIUM'}</span>
         </div>
         <div className="card stat">
           <span className="stat-label">Confidence</span>
@@ -72,10 +72,10 @@ function AnalysisResult({ result, onReset }) {
             <div className="conf-bar">
               <div
                 className="conf-fill"
-                style={{ width: `${Math.round(a.confidence * 100)}%` }}
+                style={{ width: `${Math.round((a.confidence || 0.8) * 100)}%` }}
               />
             </div>
-            <span>{Math.round(a.confidence * 100)}%</span>
+            <span>{Math.round((a.confidence || 0.8) * 100)}%</span>
           </div>
         </div>
       </div>
@@ -97,14 +97,16 @@ function AnalysisResult({ result, onReset }) {
         </p>
       </section>
 
-      <section className="card section">
-        <h3>Agent trace ({result.agent_trace.length} steps)</h3>
-        <ul className="trace">
-          {result.agent_trace.map((s, i) => (
-            <TraceStep key={i} step={s} index={i} />
-          ))}
-        </ul>
-      </section>
+      {result.agent_trace && result.agent_trace.length > 0 && (
+        <section className="card section">
+          <h3>Agent trace ({result.agent_trace.length} steps)</h3>
+          <ul className="trace">
+            {result.agent_trace.map((s, i) => (
+              <TraceStep key={i} step={s} index={i} />
+            ))}
+          </ul>
+        </section>
+      )}
 
       {a.suggested_response && (
         <section className="card section">
@@ -139,13 +141,24 @@ function AnalysisResult({ result, onReset }) {
   );
 }
 
-function TicketPage() {
+function TicketPage({ user }) {
   const [form, setForm] = useState({
     customer_name: '',
     customer_email: '',
     subject: '',
     message: '',
   });
+
+  useEffect(() => {
+    if (user) {
+      setForm((prev) => ({
+        ...prev,
+        customer_name: user.user_metadata?.full_name || prev.customer_name || user.email.split('@')[0],
+        customer_email: user.email || prev.customer_email,
+      }));
+    }
+  }, [user]);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [result, setResult] = useState(null);

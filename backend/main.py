@@ -187,30 +187,33 @@ def chat(payload: ChatRequest):
 
 
 @app.post("/api/chat/convert")
-def convert_chat(conversation_id: int, customer_email: str, subject: str):
-    ticket = tools.convert_chat_to_ticket(conversation_id, customer_email, subject)
+def convert_chat(payload: ConvertChatRequest):
+    ticket = tools.convert_chat_to_ticket(
+        payload.conversation_id, payload.customer_email, payload.subject
+    )
     ticket_id = ticket.get("id")
     if not ticket_id:
-        raise HTTPException(status_code=500, detail="Failed to create ticket from chat")
+        detail = ticket.get("error") or "Failed to create ticket from chat"
+        raise HTTPException(status_code=500, detail=detail)
 
     # Run AI analysis on the converted ticket
-    messages = tools.get_conversation_messages(conversation_id)
-    message_text = "\n".join(f"[{m['sender_type']}]: {m['content']}" for m in messages)
+    messages = tools.get_conversation_messages(payload.conversation_id)
+    message_text = "\n".join(f"[{m['sender_type']}]: {m['content']}" for m in messages) if messages else payload.subject
 
     result = analyze_ticket(
         ticket_id=ticket_id,
-        name=customer_email.split("@")[0],
-        email=customer_email,
-        subject=subject,
+        name=payload.customer_email.split("@")[0],
+        email=payload.customer_email,
+        subject=payload.subject,
         message=message_text,
     )
 
     tools.log_activity(ticket_id, "system", "ticket_created_from_chat", {
-        "conversation_id": conversation_id,
+        "conversation_id": payload.conversation_id,
     })
 
-    result["customer_email"] = customer_email
-    result["subject"] = subject
+    result["customer_email"] = payload.customer_email
+    result["subject"] = payload.subject
     return result
 
 

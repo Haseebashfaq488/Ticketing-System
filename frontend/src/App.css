@@ -811,12 +811,155 @@ textarea:focus {
 
 .convert-form {
   display: flex;
-  gap: 8px;
-  align-items: center;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
 }
 
 .convert-form input {
-  width: 240px;
-  padding: 8px 12px;
-  font-size: 13px;
+  width: 100%;
+  padding: 10px 14px;
+  font-size: 14px;
 }
+
+.convert-prompt, .convert-success {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+}
+
+.actions-row {
+  display: flex;
+  gap: 10px;
+}
+
+.bold-label {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+/* ---------- Auth Modal & User Badge Styles ---------- */
+.auth-status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-badge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  padding: 6px 14px;
+  border-radius: 999px;
+}
+
+.user-email {
+  font-size: 13px;
+  color: #c7d2fe;
+  font-weight: 500;
+}
+
+.small-btn {
+  padding: 6px 14px;
+  font-size: 12.5px;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(3, 7, 18, 0.75);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.modal-content {
+  position: relative;
+  width: 100%;
+  max-width: 440px;
+  padding: 28px;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 16px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+}
+
+.modal-close {
+  position: absolute;
+  top: 16px;
+  right: 20px;
+  background: none;
+  border: none;
+  color: #94a3b8;
+  font-size: 24px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.modal-close:hover {
+  color: #fff;
+}
+
+.auth-header h2 {
+  margin: 0 0 6px;
+  font-size: 20px;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 16px 0;
+}
+
+.auth-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: #cbd5e1;
+}
+
+.block-btn {
+  width: 100%;
+  margin-top: 8px;
+  padding: 12px;
+}
+
+.demo-accounts {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid #1e293b;
+  text-align: center;
+}
+
+.auth-switch {
+  text-align: center;
+  margin-top: 16px;
+  font-size: 13.5px;
+  color: #94a3b8;
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  color: #818cf8;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.btn-link:hover {
+  color: #a5b4fc;
+}
+

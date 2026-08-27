@@ -191,17 +191,34 @@ def get_conversation_messages(conversation_id: int) -> list:
         return []
 
 
+def get_or_create_customer(email: str, name: str = None) -> dict:
+    """Get customer by email or create a record if it does not exist."""
+    clean_email = (email or "guest@novaware.dev").lower()
+    customer = get_customer(clean_email)
+    if customer.get("id"):
+        return customer
+
+    try:
+        cust_name = name or clean_email.split("@")[0].capitalize()
+        res = _sb().table("customers").insert({"name": cust_name, "email": clean_email}).execute()
+        if res.data:
+            return res.data[0]
+    except Exception:
+        pass
+    return customer
+
+
 def convert_chat_to_ticket(conversation_id: int, customer_email: str, subject: str) -> dict:
     """Convert a live chat conversation into a ticket."""
-    customer = get_customer(customer_email)
+    customer = get_or_create_customer(customer_email)
     cid = customer.get("id")
-    if not cid:
-        return {"error": "Customer not found"}
 
     # Get conversation messages for context
     messages = get_conversation_messages(conversation_id)
-    message_text = "\n".join(
-        f"[{m['sender_type']}]: {m['content']}" for m in messages
+    message_text = (
+        "\n".join(f"[{m['sender_type']}]: {m['content']}" for m in messages)
+        if messages
+        else subject
     )
 
     # Create ticket
@@ -214,8 +231,11 @@ def convert_chat_to_ticket(conversation_id: int, customer_email: str, subject: s
 
     # Link conversation to ticket
     if ticket.get("id"):
-        _sb().table("conversations").update(
-            {"ticket_id": ticket["id"]}
-        ).eq("id", conversation_id).execute()
+        try:
+            _sb().table("conversations").update(
+                {"ticket_id": ticket["id"]}
+            ).eq("id", conversation_id).execute()
+        except Exception:
+            pass
 
     return ticket
