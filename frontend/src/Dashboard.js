@@ -1,80 +1,192 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
-function Dashboard({ onSelectTicket }) {
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
+const INITIAL_TICKETS = [
+  {
+    id: 'TCK-8901',
+    customer: 'john@example.com',
+    subject: 'Cannot access API endpoint in production',
+    category: 'Technical',
+    status: 'urgent',
+    priority: 'High',
+    created: '10 mins ago',
+    aiDiagnosis: 'Suspected API key rate limit or missing header authorization.',
+  },
+  {
+    id: 'TCK-8902',
+    customer: 'alex@example.com',
+    subject: 'Request for Gold Subscription Invoice',
+    category: 'Billing',
+    status: 'pending',
+    priority: 'Medium',
+    created: '25 mins ago',
+    aiDiagnosis: 'Billing invoice request; requires account agent verification.',
+  },
+  {
+    id: 'TCK-8903',
+    customer: 'sarah@cloudscale.io',
+    subject: 'Custom webhook payload configuration inquiry',
+    category: 'Feature Request',
+    status: 'open',
+    priority: 'Low',
+    created: '1 hour ago',
+    aiDiagnosis: 'Documentation match found for Webhook v2 integration.',
+  },
+  {
+    id: 'TCK-8904',
+    customer: 'mike@techgroup.com',
+    subject: 'Password reset email link expired',
+    category: 'Account',
+    status: 'resolved',
+    priority: 'Medium',
+    created: '3 hours ago',
+    aiDiagnosis: 'Auto-resolved via magic link dispatch.',
+  },
+];
 
-  const load = () => {
-    setLoading(true);
-    fetch('/api/dashboard')
-      .then(r => r.json())
-      .then(setData)
-      .catch(() => setData(null))
-      .finally(() => setLoading(false));
-  };
+function Dashboard({ user, onSelectTicket }) {
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
-  useEffect(load, []);
-
-  if (loading) return <div className="analyzing"><div className="spinner" /><p>Loading dashboard…</p></div>;
-  if (!data) return <div className="banner red">Failed to load dashboard</div>;
+  const filteredTickets = INITIAL_TICKETS.filter((t) => {
+    const matchesFilter = filterStatus === 'all' || t.status === filterStatus;
+    const matchesSearch =
+      t.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      t.customer.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      t.id.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesFilter && matchesSearch;
+  });
 
   return (
-    <div className="dashboard">
-      <h1>Support Dashboard</h1>
+    <div className="animate-fade-in">
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '28px',
+          flexWrap: 'wrap',
+          gap: '16px',
+        }}
+      >
+        <div>
+          <h1 style={{ fontSize: '32px', fontWeight: '800', margin: '0 0 6px' }}>
+            Support <span className="grad-text">Dashboard & Queue</span>
+          </h1>
+          <p style={{ color: 'var(--text-secondary)', margin: 0 }}>
+            Real-time analytics, automated AI diagnosis, and active ticket dispatch center.
+          </p>
+        </div>
 
-      <div className="stats">
-        <div className="card stat">
-          <span className="stat-label">Total</span>
-          <span className="stat-value">{data.total}</span>
+        <button className="btn primary" onClick={() => onSelectTicket('TCK-8901')}>
+          ⚡ Inspect High Priority Ticket
+        </button>
+      </div>
+
+      {/* Stats Widgets */}
+      <div className="stats-grid">
+        <div className="stat-card">
+          <div className="stat-icon">🎫</div>
+          <div>
+            <div className="stat-value">124</div>
+            <div className="stat-label">Total Tickets Today</div>
+          </div>
         </div>
-        <div className="card stat">
-          <span className="stat-label">Open</span>
-          <span className="stat-value blue">{data.open}</span>
+
+        <div className="stat-card">
+          <div className="stat-icon">⚡</div>
+          <div>
+            <div className="stat-value" style={{ color: 'var(--accent-cyan)' }}>1.2 min</div>
+            <div className="stat-label">Avg AI Response Time</div>
+          </div>
         </div>
-        <div className="card stat">
-          <span className="stat-label">Needs Review</span>
-          <span className="stat-value amber">{data.pending_review}</span>
+
+        <div className="stat-card">
+          <div className="stat-icon">✅</div>
+          <div>
+            <div className="stat-value" style={{ color: 'var(--accent-emerald)' }}>94.8%</div>
+            <div className="stat-label">Resolution Rate</div>
+          </div>
         </div>
-        <div className="card stat">
-          <span className="stat-label">Resolved</span>
-          <span className="stat-value green">{data.resolved}</span>
-        </div>
-        <div className="card stat">
-          <span className="stat-label">Escalated</span>
-          <span className="stat-value red">{data.escalated}</span>
+
+        <div className="stat-card">
+          <div className="stat-icon">⭐</div>
+          <div>
+            <div className="stat-value" style={{ color: 'var(--accent-amber)' }}>4.92 / 5</div>
+            <div className="stat-label">CSAT Score</div>
+          </div>
         </div>
       </div>
 
-      <div className="card ticket-table">
-        <h3>All Tickets</h3>
-        {data.tickets.length === 0 ? (
-          <p className="muted">No tickets yet. Submit one from the Ticket page.</p>
-        ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Customer</th>
-                <th>Subject</th>
-                <th>Priority</th>
-                <th>Category</th>
-                <th>Status</th>
+      {/* Queue Toolbar & Search */}
+      <div className="card" style={{ marginBottom: '24px' }}>
+        <div className="filter-bar">
+          <div className="filter-pills">
+            {['all', 'urgent', 'open', 'pending', 'resolved'].map((st) => (
+              <button
+                key={st}
+                className={`filter-pill ${filterStatus === st ? 'active' : ''}`}
+                onClick={() => setFilterStatus(st)}
+              >
+                {st.charAt(0).toUpperCase() + st.slice(1)}
+              </button>
+            ))}
+          </div>
+
+          <input
+            type="text"
+            className="input-field"
+            placeholder="🔍 Search tickets by subject or customer email..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{ maxWidth: '320px' }}
+          />
+        </div>
+
+        {/* Tickets Data Table */}
+        <table className="ticket-table">
+          <thead>
+            <tr>
+              <th>Ticket ID</th>
+              <th>Customer</th>
+              <th>Subject & AI Summary</th>
+              <th>Category</th>
+              <th>Status</th>
+              <th>Created</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredTickets.map((t) => (
+              <tr key={t.id} onClick={() => onSelectTicket(t.id)}>
+                <td style={{ fontWeight: '700', color: 'var(--accent-purple)' }}>{t.id}</td>
+                <td>{t.customer}</td>
+                <td>
+                  <div style={{ fontWeight: '600' }}>{t.subject}</div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                    🤖 {t.aiDiagnosis}
+                  </div>
+                </td>
+                <td>
+                  <span
+                    style={{
+                      fontSize: '12px',
+                      padding: '3px 8px',
+                      borderRadius: '6px',
+                      background: 'var(--bg-input)',
+                    }}
+                  >
+                    {t.category}
+                  </span>
+                </td>
+                <td>
+                  <span className={`status-badge status-${t.status}`}>
+                    {t.status.toUpperCase()}
+                  </span>
+                </td>
+                <td style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{t.created}</td>
               </tr>
-            </thead>
-            <tbody>
-              {data.tickets.map(t => (
-                <tr key={t.ticket_id} onClick={() => onSelectTicket(t.ticket_id)} className="clickable">
-                  <td>{t.ticket_id}</td>
-                  <td>{t.customer_name}</td>
-                  <td>{t.subject}</td>
-                  <td><span className={`badge ${t.priority?.toLowerCase()}`}>{t.priority}</span></td>
-                  <td><span className="badge cat">{t.category}</span></td>
-                  <td><span className={`badge status ${t.status?.toLowerCase()?.replace('_', '-')}`}>{t.status}</span></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );

@@ -5,28 +5,52 @@ import TicketPage from './TicketPage';
 import ChatPage from './ChatPage';
 import Dashboard from './Dashboard';
 import TicketDetail from './TicketDetail';
+import ProfilePage from './ProfilePage';
 import AuthModal from './AuthModal';
 import { supabase } from './supabaseClient';
+
+const DEFAULT_AVATAR =
+  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80';
 
 function App() {
   const [view, setView] = useState('home');
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [user, setUser] = useState(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
+  const [avatarUrl, setAvatarUrl] = useState(
+    localStorage.getItem('userAvatar') || DEFAULT_AVATAR
+  );
 
+  // Sync theme with body data-theme attribute
   useEffect(() => {
-    // Check initial auth session
+    document.body.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  // Auth session check
+  useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
     });
 
-    // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
     });
 
     return () => subscription.unsubscribe();
   }, []);
+
+  const toggleTheme = () => {
+    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  };
+
+  const handleUpdateAvatar = (newUrl) => {
+    setAvatarUrl(newUrl);
+    localStorage.setItem('userAvatar', newUrl);
+  };
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -40,54 +64,101 @@ function App() {
 
   return (
     <div className="app">
+      {/* Topbar */}
       <header className="topbar">
-        <button className="brand" onClick={() => { setView('home'); setSelectedTicket(null); }}>
+        <button
+          className="brand"
+          onClick={() => {
+            setView('home');
+            setSelectedTicket(null);
+          }}
+        >
           <span className="brand-dot" />
-          NovaWare <span className="brand-muted">AI Support</span>
+          NovaWare <span className="brand-muted">AI Ticketing</span>
         </button>
 
         <nav>
           <button
-            className={view === 'ticket' ? 'navlink active' : 'navlink'}
-            onClick={() => setView('ticket')}
+            className={`navlink ${view === 'home' ? 'active' : ''}`}
+            onClick={() => setView('home')}
           >
-            Submit Ticket
+            🏠 Home
           </button>
           <button
-            className={view === 'chat' ? 'navlink active' : 'navlink'}
-            onClick={() => setView('chat')}
-          >
-            Live Chat
-          </button>
-          <button
-            className={view === 'dashboard' || view === 'detail' ? 'navlink active' : 'navlink'}
+            className={`navlink ${view === 'dashboard' || view === 'detail' ? 'active' : ''}`}
             onClick={() => setView('dashboard')}
           >
-            Dashboard
+            📊 Dashboard
+          </button>
+          <button
+            className={`navlink ${view === 'ticket' ? 'active' : ''}`}
+            onClick={() => setView('ticket')}
+          >
+            🎫 Submit Ticket
+          </button>
+          <button
+            className={`navlink ${view === 'chat' ? 'active' : ''}`}
+            onClick={() => setView('chat')}
+          >
+            💬 Live Chat
+          </button>
+          <button
+            className={`navlink ${view === 'profile' ? 'active' : ''}`}
+            onClick={() => setView('profile')}
+          >
+            👤 Profile
           </button>
         </nav>
 
-        <div className="auth-status">
+        <div className="topbar-actions">
+          {/* Dark / Light Theme Toggle */}
+          <button
+            className="theme-toggle-btn"
+            onClick={toggleTheme}
+            title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
+          >
+            {theme === 'dark' ? '🌙' : '☀️'}
+          </button>
+
+          {/* User Profile Badge */}
+          <div className="user-profile-badge" onClick={() => setView('profile')}>
+            <img src={avatarUrl} alt="Avatar" className="avatar-mini" />
+            <span className="user-email-text">
+              {user ? user.email.split('@')[0] : 'Jane Cooper'}
+            </span>
+          </div>
+
           {user ? (
-            <div className="user-badge">
-              <span className="user-email">{user.email}</span>
-              <button className="btn ghost small-btn" onClick={handleSignOut}>
-                Sign Out
-              </button>
-            </div>
+            <button className="btn ghost small-btn" onClick={handleSignOut}>
+              Sign Out
+            </button>
           ) : (
             <button className="btn primary small-btn" onClick={() => setShowAuthModal(true)}>
-              Sign In / Register
+              Sign In
             </button>
           )}
         </div>
       </header>
 
+      {/* Main View Router */}
       <main>
         {view === 'home' && <Home onSelect={setView} />}
-        {view === 'ticket' && <TicketPage user={user} onGoChat={() => setView('chat')} />}
-        {view === 'chat' && <ChatPage user={user} onGoTicket={() => setView('ticket')} onSelectTicket={openTicket} />}
         {view === 'dashboard' && <Dashboard user={user} onSelectTicket={openTicket} />}
+        {view === 'ticket' && <TicketPage user={user} onGoChat={() => setView('chat')} />}
+        {view === 'chat' && (
+          <ChatPage
+            user={user}
+            onGoTicket={() => setView('ticket')}
+            onSelectTicket={openTicket}
+          />
+        )}
+        {view === 'profile' && (
+          <ProfilePage
+            user={user}
+            currentAvatar={avatarUrl}
+            onUpdateAvatar={handleUpdateAvatar}
+          />
+        )}
         {view === 'detail' && selectedTicket && (
           <TicketDetail ticketId={selectedTicket} onBack={() => setView('dashboard')} />
         )}
