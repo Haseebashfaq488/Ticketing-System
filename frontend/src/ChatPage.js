@@ -13,7 +13,7 @@ function Trace({ steps }) {
   return (
     <div className="chat-trace">
       <button className="trace-toggle" onClick={() => setOpen(!open)}>
-        ⚙ agent trace ({steps.length} tool call{steps.length === 1 ? '' : 's'})
+        agent trace ({steps.length} tool call{steps.length === 1 ? '' : 's'})
         {open ? ' ▲' : ' ▼'}
       </button>
       {open && (
@@ -29,23 +29,37 @@ function Trace({ steps }) {
   );
 }
 
-function ChatPage() {
+function ChatPage({ onGoTicket }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [email, setEmail] = useState('');
   const [busy, setBusy] = useState(false);
+  const [conversationId, setConversationId] = useState(null);
+  const [convertState, setConvertState] = useState(null);
+  const [convertSubject, setConvertSubject] = useState('');
   const endRef = useRef(null);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, busy]);
 
+  const startConversation = async (customerEmail) => {
+    if (conversationId) return;
+    try {
+      const res = await fetch(`/api/chat/start?customer_email=${encodeURIComponent(customerEmail || 'guest')}`, { method: 'POST' });
+      const body = await res.json();
+      setConversationId(body.conversation_id);
+    } catch {}
+  };
+
   const send = async (text) => {
     const content = (text ?? input).trim();
     if (!content || busy) return;
     setInput('');
-    setBusy(true);
 
+    if (!conversationId) await startConversation(email);
+
+    setBusy(true);
     const history = [...messages, { role: 'user', content }];
     setMessages(history);
 
@@ -56,9 +70,11 @@ function ChatPage() {
         body: JSON.stringify({
           messages: history,
           customer_email: email || null,
+          conversation_id: conversationId,
         }),
       });
       const body = await res.json();
+      if (body.conversation_id && !conversationId) setConversationId(body.conversation_id);
       setMessages([
         ...history,
         {
@@ -74,6 +90,29 @@ function ChatPage() {
       ]);
     } finally {
       setBusy(false);
+    }
+  };
+
+  const convertToTicket = async () => {
+    if (!conversationId || !convertSubject.trim()) return;
+    setConvertState('working');
+    try {
+      const res = await fetch('/api/chat/convert', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          conversation_id: conversationId,
+          customer_email: email || 'guest',
+          subject: convertSubject,
+        }),
+      });
+      if (res.ok) {
+        setConvertState('done');
+      } else {
+        setConvertState('error');
+      }
+    } catch {
+      setConvertState('error');
     }
   };
 
@@ -131,10 +170,7 @@ function ChatPage() {
 
       <form
         className="chat-input card"
-        onSubmit={(e) => {
-          e.preventDefault();
-          send();
-        }}
+        onSubmit={(e) => { e.preventDefault(); send(); }}
       >
         <input
           value={input}
@@ -146,6 +182,27 @@ function ChatPage() {
           Send
         </button>
       </form>
+
+      {messages.length > 2 && conversationId && convertState !== 'done' && (
+        <div className="card convert-section">
+          <p className="muted">Can't resolve in chat?</p>
+          {convertState === 'edit' ? (
+            <div className="convert-form">
+              <input
+                value={convertSubject}
+                onChange={e => setConvertSubject(e.target.value)}
+                placeholder="Subject for the ticket"
+              />
+              <button className="btn primary" onClick={convertToTicket} disabled={!convertSubject.trim()}>Create Ticket</button>
+              <button className="btn ghost" onClick={() => setConvertState(null)}>Cancel</button>
+            </div>
+          ) : (
+            <button className="btn ghost" onClick={() => setConvertState('edit')}>Create a ticket from this chat →</button>
+          )}
+          {convertState === 'working' && <p className="muted">Creating ticket…</p>}
+          {convertState === 'error' && <p className="banner red">Failed to create ticket</p>}
+        </div>
+      )}
     </div>
   );
 }

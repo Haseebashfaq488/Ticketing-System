@@ -27,9 +27,19 @@ function Home({ onSelect }) {
           <span className="choice-title">Live Chat</span>
           <span className="choice-desc">
             Chat with the AI agent in real time. It uses our company knowledge
-            base only - it never invents policies or prices.
+            base only — it never invents policies or prices.
           </span>
           <span className="choice-cta">Start chatting →</span>
+        </button>
+
+        <button className="choice" onClick={() => onSelect('dashboard')}>
+          <span className="choice-icon">📊</span>
+          <span className="choice-title">Support Dashboard</span>
+          <span className="choice-desc">
+            View all tickets, see AI analysis, approve or edit responses,
+            and manage the support queue.
+          </span>
+          <span className="choice-cta">Open dashboard →</span>
         </button>
       </div>
 

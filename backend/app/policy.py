@@ -45,6 +45,8 @@ def apply_policy(analysis: dict) -> dict:
     decision = "HUMAN_REVIEW" if reasons else "AUTO_RESPONSE"
     return {
         "decision": decision,
+        # Map to actual DB status values
+        "status": "IN_PROGRESS" if decision == "HUMAN_REVIEW" else "RESOLVED",
         "policy_reasons": reasons,
         "confidence_threshold": CONFIDENCE_THRESHOLD,
     }

@@ -28,7 +28,8 @@ def _is_configured() -> bool:
     return bool(GEMINI_API_KEY) and GEMINI_API_KEY != "your_api_key_here"
 
 
-def _post(payload: dict) -> str:
+def post_payload(payload: dict) -> dict:
+    """Send payload to Gemini API and return raw json response."""
     if not _is_configured():
         raise LLMError(
             "GEMINI_API_KEY is not set. Copy backend/.env.example to "
@@ -48,7 +49,14 @@ def _post(payload: dict) -> str:
         raise LLMError(f"Gemini API error {resp.status_code}: {resp.text[:300]}")
 
     try:
-        data = resp.json()
+        return resp.json()
+    except ValueError as exc:
+        raise LLMError("Invalid JSON from Gemini API") from exc
+
+
+def _post(payload: dict) -> str:
+    data = post_payload(payload)
+    try:
         return data["candidates"][0]["content"]["parts"][0]["text"]
     except (KeyError, IndexError, ValueError) as exc:
         raise LLMError(

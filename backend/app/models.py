@@ -19,6 +19,13 @@ class ChatTurn(BaseModel):
 class ChatRequest(BaseModel):
     messages: list[ChatTurn]
     customer_email: Optional[EmailStr] = None
+    conversation_id: Optional[int] = None
+
+
+class ConvertChatRequest(BaseModel):
+    conversation_id: int
+    customer_email: str
+    subject: str
 
 
 class TicketAnalysis(BaseModel):
