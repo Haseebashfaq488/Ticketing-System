@@ -30,10 +30,12 @@ function App() {
   const [avatarUrl, setAvatarUrl] = useState(
     localStorage.getItem('userAvatar') || DEFAULT_AVATAR
   );
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Smooth scroll to top whenever page view changes
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
+    setMobileMenuOpen(false);
   }, [view]);
 
   useEffect(() => {
@@ -84,54 +86,63 @@ function App() {
     setView('detail');
   };
 
+  const handleNavClick = (targetView) => {
+    setView(targetView);
+    setMobileMenuOpen(false);
+  };
+
   return (
     <div className="app">
-      {/* Topbar */}
+      {/* Topbar Header */}
       <header className="topbar">
+        {/* Left Side: Brand */}
         <button
           className="brand"
           onClick={() => {
             setView('home');
             setSelectedTicket(null);
+            setMobileMenuOpen(false);
           }}
         >
           <span className="brand-dot" />
-          NovaWare <span className="brand-muted">AI Support Platform</span>
+          NovaWare <span className="brand-muted">AI Support</span>
         </button>
 
-        <nav>
+        {/* Desktop Navigation Links */}
+        <nav className="desktop-nav">
           <button
             className={`navlink ${view === 'home' ? 'active' : ''}`}
-            onClick={() => setView('home')}
+            onClick={() => handleNavClick('home')}
           >
             Home
           </button>
           <button
             className={`navlink ${view === 'dashboard' || view === 'detail' ? 'active' : ''}`}
-            onClick={() => setView('dashboard')}
+            onClick={() => handleNavClick('dashboard')}
           >
             Dashboard
           </button>
           <button
             className={`navlink ${view === 'ticket' ? 'active' : ''}`}
-            onClick={() => setView('ticket')}
+            onClick={() => handleNavClick('ticket')}
           >
             Submit Ticket
           </button>
           <button
             className={`navlink ${view === 'chat' ? 'active' : ''}`}
-            onClick={() => setView('chat')}
+            onClick={() => handleNavClick('chat')}
           >
             Live Chat
           </button>
           <button
             className={`navlink ${view === 'profile' ? 'active' : ''}`}
-            onClick={() => setView('profile')}
+            onClick={() => handleNavClick('profile')}
           >
             Profile
           </button>
         </nav>
 
+        {/* Right Side: Theme Toggle, Avatar, Sign In, and Mobile Hamburger */}
         <div className="topbar-actions">
           {/* Theme Toggle Button */}
           <button
@@ -159,10 +170,14 @@ function App() {
           </button>
 
           {/* User Profile Badge */}
-          <div className="user-profile-badge" onClick={() => setView('profile')}>
+          <div
+            className="user-profile-badge"
+            onClick={() => handleNavClick('profile')}
+            title="Open Profile"
+          >
             <img src={avatarUrl} alt="Avatar" className="avatar-mini" />
             <span className="user-email-text">
-              {user ? user.email.split('@')[0] : 'Jane Cooper'}
+              {user ? user.email.split('@')[0] : 'Jane'}
             </span>
           </div>
 
@@ -175,18 +190,97 @@ function App() {
               Sign In
             </button>
           )}
+
+          {/* Mobile 3-Lines Hamburger Button */}
+          <button
+            className="hamburger-btn"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            title="Toggle Navigation Menu"
+          >
+            {mobileMenuOpen ? (
+              <svg className="icon-svg" viewBox="0 0 24 24">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            ) : (
+              <svg className="icon-svg" viewBox="0 0 24 24">
+                <line x1="3" y1="12" x2="21" y2="12" />
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <line x1="3" y1="18" x2="21" y2="18" />
+              </svg>
+            )}
+          </button>
         </div>
       </header>
 
+      {/* Mobile Navigation Dropdown Drawer */}
+      {mobileMenuOpen && (
+        <div className="mobile-menu-drawer animate-fade-in">
+          <button
+            className={`mobile-nav-item ${view === 'home' ? 'active' : ''}`}
+            onClick={() => handleNavClick('home')}
+          >
+            <svg className="icon-svg" viewBox="0 0 24 24">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+              <polyline points="9 22 9 12 15 12 15 22" />
+            </svg>
+            Home Overview
+          </button>
+
+          <button
+            className={`mobile-nav-item ${view === 'dashboard' || view === 'detail' ? 'active' : ''}`}
+            onClick={() => handleNavClick('dashboard')}
+          >
+            <svg className="icon-svg" viewBox="0 0 24 24">
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <line x1="3" y1="9" x2="21" y2="9" />
+              <line x1="9" y1="21" x2="9" y2="9" />
+            </svg>
+            Support Dashboard
+          </button>
+
+          <button
+            className={`mobile-nav-item ${view === 'ticket' ? 'active' : ''}`}
+            onClick={() => handleNavClick('ticket')}
+          >
+            <svg className="icon-svg" viewBox="0 0 24 24">
+              <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+            </svg>
+            Submit Ticket
+          </button>
+
+          <button
+            className={`mobile-nav-item ${view === 'chat' ? 'active' : ''}`}
+            onClick={() => handleNavClick('chat')}
+          >
+            <svg className="icon-svg" viewBox="0 0 24 24">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            </svg>
+            Live Support Chat
+          </button>
+
+          <button
+            className={`mobile-nav-item ${view === 'profile' ? 'active' : ''}`}
+            onClick={() => handleNavClick('profile')}
+          >
+            <svg className="icon-svg" viewBox="0 0 24 24">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+              <circle cx="12" cy="7" r="4" />
+            </svg>
+            User Profile Settings
+          </button>
+        </div>
+      )}
+
       {/* Main View Router */}
       <main>
-        {view === 'home' && <Home onSelect={setView} onOpenUpgrade={openUpgradeModal} />}
+        {view === 'home' && <Home onSelect={handleNavClick} onOpenUpgrade={openUpgradeModal} />}
         {view === 'dashboard' && <Dashboard user={user} onSelectTicket={openTicket} />}
-        {view === 'ticket' && <TicketPage user={user} onGoChat={() => setView('chat')} />}
+        {view === 'ticket' && <TicketPage user={user} onGoChat={() => handleNavClick('chat')} />}
         {view === 'chat' && (
           <ChatPage
             user={user}
-            onGoTicket={() => setView('ticket')}
+            onGoTicket={() => handleNavClick('ticket')}
             onSelectTicket={openTicket}
           />
         )}
@@ -199,12 +293,12 @@ function App() {
           />
         )}
         {view === 'detail' && selectedTicket && (
-          <TicketDetail ticketId={selectedTicket} onBack={() => setView('dashboard')} />
+          <TicketDetail ticketId={selectedTicket} onBack={() => handleNavClick('dashboard')} />
         )}
       </main>
 
       {/* Enterprise Footer */}
-      <Footer onNavigate={setView} onOpenAbout={() => setShowAboutModal(true)} />
+      <Footer onNavigate={handleNavClick} onOpenAbout={() => setShowAboutModal(true)} />
 
       {/* Modals */}
       <AuthModal
