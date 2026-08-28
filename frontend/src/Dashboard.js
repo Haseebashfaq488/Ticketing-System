@@ -3,56 +3,85 @@ import { useState } from 'react';
 const INITIAL_TICKETS = [
   {
     id: 'TCK-8901',
-    customer: 'john@example.com',
+    customerId: 1,
+    customer: 'John Doe (john@example.com)',
     subject: 'Cannot access API endpoint in production',
-    category: 'Technical',
-    status: 'urgent',
-    priority: 'High',
+    category: 'TECHNICAL',
+    status: 'ESCALATED',
+    priority: 'HIGH',
     created: '10 mins ago',
-    aiDiagnosis: 'Suspected API key rate limit or missing header authorization.',
+    aiDiagnosis: {
+      intent: 'API Access Failure',
+      confidence: 0.94,
+      reasoning: 'Suspected API key rate limit or missing Bearer authorization header.',
+      recommendedAction: 'Verify API Key status in customers table & refresh rate limits.',
+      model: 'gemini-3.6-flash',
+    },
   },
   {
     id: 'TCK-8902',
-    customer: 'alex@example.com',
+    customerId: 2,
+    customer: 'Sarah Smith (sarah@example.com)',
     subject: 'Request for Gold Subscription Invoice',
-    category: 'Billing',
-    status: 'pending',
-    priority: 'Medium',
+    category: 'BILLING',
+    status: 'WAITING_FOR_CUSTOMER',
+    priority: 'MEDIUM',
     created: '25 mins ago',
-    aiDiagnosis: 'Billing invoice request; requires account agent verification.',
+    aiDiagnosis: {
+      intent: 'Billing Receipt Dispatch',
+      confidence: 0.98,
+      reasoning: 'Billing invoice request; requires account agent verification of payment_status.',
+      recommendedAction: 'Send automated invoice PDF to customer email.',
+      model: 'gemini-3.6-flash',
+    },
   },
   {
     id: 'TCK-8903',
-    customer: 'sarah@cloudscale.io',
+    customerId: 3,
+    customer: 'Alex Kim (alex@example.com)',
     subject: 'Custom webhook payload configuration inquiry',
-    category: 'Feature Request',
-    status: 'open',
-    priority: 'Low',
+    category: 'FEATURE_REQUEST',
+    status: 'OPEN',
+    priority: 'LOW',
     created: '1 hour ago',
-    aiDiagnosis: 'Documentation match found for Webhook v2 integration.',
+    aiDiagnosis: {
+      intent: 'Documentation Query',
+      confidence: 0.91,
+      reasoning: 'Documentation match found for Webhook v2 integration schema.',
+      recommendedAction: 'Provide Webhook v2 payload documentation link.',
+      model: 'gemini-3.6-flash',
+    },
   },
   {
     id: 'TCK-8904',
-    customer: 'mike@techgroup.com',
+    customerId: 1,
+    customer: 'John Doe (john@example.com)',
     subject: 'Password reset email link expired',
-    category: 'Account',
-    status: 'resolved',
-    priority: 'Medium',
+    category: 'SECURITY',
+    status: 'RESOLVED',
+    priority: 'MEDIUM',
     created: '3 hours ago',
-    aiDiagnosis: 'Auto-resolved via magic link dispatch.',
+    aiDiagnosis: {
+      intent: 'Password Reset',
+      confidence: 0.99,
+      reasoning: 'Auto-resolved via magic link dispatch in users table.',
+      recommendedAction: 'Trigger fresh password reset token.',
+      model: 'gemini-3.6-flash',
+    },
   },
 ];
 
 function Dashboard({ user, onSelectTicket }) {
-  const [filterStatus, setFilterStatus] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
 
   const filteredTickets = INITIAL_TICKETS.filter((t) => {
-    const matchesFilter = filterStatus === 'all' || t.status === filterStatus;
+    const matchesFilter = filterStatus === 'ALL' || t.status === filterStatus;
     const matchesSearch =
       t.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
       t.customer.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.id.toLowerCase().includes(searchQuery.toLowerCase());
+      t.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      t.category.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesFilter && matchesSearch;
   });
 
@@ -73,7 +102,7 @@ function Dashboard({ user, onSelectTicket }) {
             Support <span className="grad-text">Dashboard & Queue</span>
           </h1>
           <p style={{ color: 'var(--text-secondary)', margin: 0 }}>
-            Real-time analytics, automated AI diagnosis, and active ticket dispatch center.
+            Real-time support_tickets & ai_analyses database queue (schema.sql synchronized).
           </p>
         </div>
 
@@ -140,14 +169,14 @@ function Dashboard({ user, onSelectTicket }) {
       {/* Queue Toolbar & Search */}
       <div className="card" style={{ marginBottom: '24px' }}>
         <div className="filter-bar">
-          <div className="filter-pills">
-            {['all', 'urgent', 'open', 'pending', 'resolved'].map((st) => (
+          <div className="filter-pills" style={{ flexWrap: 'wrap' }}>
+            {['ALL', 'OPEN', 'IN_PROGRESS', 'WAITING_FOR_CUSTOMER', 'ESCALATED', 'RESOLVED', 'CLOSED'].map((st) => (
               <button
                 key={st}
                 className={`filter-pill ${filterStatus === st ? 'active' : ''}`}
                 onClick={() => setFilterStatus(st)}
               >
-                {st.charAt(0).toUpperCase() + st.slice(1)}
+                {st.replace(/_/g, ' ')}
               </button>
             ))}
           </div>
@@ -155,10 +184,10 @@ function Dashboard({ user, onSelectTicket }) {
           <input
             type="text"
             className="input-field"
-            placeholder="Search tickets by subject or customer email..."
+            placeholder="Search tickets, customers, categories..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            style={{ maxWidth: '320px' }}
+            style={{ maxWidth: '280px' }}
           />
         </div>
 
@@ -168,41 +197,52 @@ function Dashboard({ user, onSelectTicket }) {
             <tr>
               <th>Ticket ID</th>
               <th>Customer</th>
-              <th>Subject & AI Summary</th>
+              <th>Subject & AI Analysis Summary</th>
               <th>Category</th>
+              <th>Priority</th>
               <th>Status</th>
-              <th>Created</th>
             </tr>
           </thead>
           <tbody>
             {filteredTickets.map((t) => (
               <tr key={t.id} onClick={() => onSelectTicket(t.id)}>
                 <td style={{ fontWeight: '700', color: 'var(--accent-purple)' }}>{t.id}</td>
-                <td>{t.customer}</td>
+                <td style={{ fontSize: '13px' }}>{t.customer}</td>
                 <td>
                   <div style={{ fontWeight: '600' }}>{t.subject}</div>
                   <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                    AI Summary: {t.aiDiagnosis}
+                    🤖 AI Reasoning ({t.aiDiagnosis.model}): {t.aiDiagnosis.reasoning}
                   </div>
                 </td>
                 <td>
                   <span
                     style={{
-                      fontSize: '12px',
+                      fontSize: '11px',
                       padding: '3px 8px',
                       borderRadius: '6px',
                       background: 'var(--bg-input)',
+                      fontWeight: '700',
                     }}
                   >
                     {t.category}
                   </span>
                 </td>
                 <td>
-                  <span className={`status-badge status-${t.status}`}>
-                    {t.status.toUpperCase()}
+                  <span
+                    style={{
+                      fontSize: '11px',
+                      fontWeight: '800',
+                      color: t.priority === 'HIGH' || t.priority === 'CRITICAL' ? 'var(--accent-rose)' : 'var(--accent-cyan)',
+                    }}
+                  >
+                    {t.priority}
                   </span>
                 </td>
-                <td style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{t.created}</td>
+                <td>
+                  <span className={`status-badge status-${t.status.toLowerCase().replace(/_/g, '-')}`}>
+                    {t.status.replace(/_/g, ' ')}
+                  </span>
+                </td>
               </tr>
             ))}
           </tbody>

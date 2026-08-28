@@ -7,6 +7,7 @@ import Dashboard from './Dashboard';
 import TicketDetail from './TicketDetail';
 import ProfilePage from './ProfilePage';
 import AuthModal from './AuthModal';
+import Footer from './Footer';
 import { supabase } from './supabaseClient';
 
 const DEFAULT_AVATAR =
@@ -177,6 +178,9 @@ function App() {
           <TicketDetail ticketId={selectedTicket} onBack={() => setView('dashboard')} />
         )}
       </main>
+
+      {/* Enterprise Footer */}
+      <Footer onNavigate={setView} />
 
       <AuthModal
         isOpen={showAuthModal}

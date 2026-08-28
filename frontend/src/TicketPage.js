@@ -2,8 +2,8 @@ import { useState } from 'react';
 
 function TicketPage({ user, onGoChat }) {
   const [subject, setSubject] = useState('');
-  const [category, setCategory] = useState('Technical');
-  const [priority, setPriority] = useState('Medium');
+  const [category, setCategory] = useState('TECHNICAL');
+  const [priority, setPriority] = useState('MEDIUM');
   const [description, setDescription] = useState('');
   const [email, setEmail] = useState(user?.email || '');
   const [attachedFile, setAttachedFile] = useState(null);
@@ -21,7 +21,7 @@ function TicketPage({ user, onGoChat }) {
           Submit a <span className="grad-text">Support Ticket</span>
         </h1>
         <p style={{ color: 'var(--text-secondary)', margin: 0 }}>
-          Describe your issue below. Our AI engine will analyze urgency and assign it to the correct specialist.
+          Describe your issue below. Our AI engine will analyze urgency, log the ticket, and assign it to a specialist.
         </p>
       </div>
 
@@ -34,11 +34,11 @@ function TicketPage({ user, onGoChat }) {
             </svg>
           </div>
           <h2 style={{ fontSize: '24px', fontWeight: '800', margin: '0 0 10px' }}>
-            Ticket Submitted Successfully!
+            Ticket Submitted & AI Logged!
           </h2>
           <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>
-            Your Ticket Reference ID is <strong style={{ color: 'var(--accent-purple)' }}>#TCK-8905</strong>. 
-            An AI initial assessment has been dispatched to your email.
+            Ticket Reference ID <strong style={{ color: 'var(--accent-purple)' }}>#TCK-8905</strong> has been stored in <code>support_tickets</code> database table.
+            An automated AI analysis has been triggered.
           </p>
           <div style={{ display: 'flex', justifyContent: 'center', gap: '12px' }}>
             <button className="btn primary" onClick={() => setSubmitted(false)}>
@@ -53,7 +53,7 @@ function TicketPage({ user, onGoChat }) {
         <div className="card">
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             <div className="form-group">
-              <label className="form-label">Your Email Address</label>
+              <label className="form-label">Your Customer Email</label>
               <input
                 type="email"
                 className="input-field"
@@ -66,30 +66,34 @@ function TicketPage({ user, onGoChat }) {
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
               <div className="form-group">
-                <label className="form-label">Category</label>
+                <label className="form-label">Category (schema.sql)</label>
                 <select
                   className="input-field"
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
                 >
-                  <option>Technical</option>
-                  <option>Billing & Subscriptions</option>
-                  <option>Account & Access</option>
-                  <option>Feature Request</option>
+                  <option value="TECHNICAL">TECHNICAL</option>
+                  <option value="BILLING">BILLING</option>
+                  <option value="ACCOUNT">ACCOUNT</option>
+                  <option value="REFUND">REFUND</option>
+                  <option value="SECURITY">SECURITY</option>
+                  <option value="FEATURE_REQUEST">FEATURE REQUEST</option>
+                  <option value="GENERAL">GENERAL</option>
+                  <option value="OTHER">OTHER</option>
                 </select>
               </div>
 
               <div className="form-group">
-                <label className="form-label">Urgency Priority</label>
+                <label className="form-label">Priority Level (schema.sql)</label>
                 <select
                   className="input-field"
                   value={priority}
                   onChange={(e) => setPriority(e.target.value)}
                 >
-                  <option>Low</option>
-                  <option>Medium</option>
-                  <option>High</option>
-                  <option>Critical / Urgent</option>
+                  <option value="LOW">LOW</option>
+                  <option value="MEDIUM">MEDIUM</option>
+                  <option value="HIGH">HIGH</option>
+                  <option value="CRITICAL">CRITICAL</option>
                 </select>
               </div>
             </div>
@@ -99,7 +103,7 @@ function TicketPage({ user, onGoChat }) {
               <input
                 type="text"
                 className="input-field"
-                placeholder="Brief summary of the issue (e.g. Cannot process credit card payment)"
+                placeholder="Brief summary of the issue (e.g. API 401 Unauthorized Error)"
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
                 required
@@ -107,11 +111,11 @@ function TicketPage({ user, onGoChat }) {
             </div>
 
             <div className="form-group">
-              <label className="form-label">Detailed Description</label>
+              <label className="form-label">Detailed Problem Description (Message)</label>
               <textarea
                 className="input-field"
                 rows="5"
-                placeholder="Provide steps to reproduce, error codes, or relevant details..."
+                placeholder="Provide steps to reproduce, error logs, or account details..."
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 required
@@ -136,7 +140,7 @@ function TicketPage({ user, onGoChat }) {
             </div>
 
             <button type="submit" className="btn primary" style={{ width: '100%', padding: '14px' }}>
-              Submit Ticket & Run AI Analysis
+              Submit Ticket & Trigger AI Analysis
             </button>
           </form>
         </div>
