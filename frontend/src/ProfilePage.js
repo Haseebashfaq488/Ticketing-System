@@ -11,7 +11,7 @@ const PRESET_AVATARS = [
   'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=200&q=80',
 ];
 
-function ProfilePage({ user, currentAvatar, onUpdateAvatar }) {
+function ProfilePage({ user, planBadge, currentAvatar, onUpdateAvatar }) {
   const [selectedAvatar, setSelectedAvatar] = useState(currentAvatar || PRESET_AVATARS[0]);
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const [fullName, setFullName] = useState('Jane Cooper');
@@ -113,7 +113,7 @@ function ProfilePage({ user, currentAvatar, onUpdateAvatar }) {
                 boxShadow: 'var(--shadow-glow-gold)',
               }}
             >
-              Gold Plan Member
+              {planBadge || 'Gold Plan Member'}
             </span>
           </div>
 

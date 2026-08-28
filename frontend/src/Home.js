@@ -1,4 +1,4 @@
-function Home({ onSelect }) {
+function Home({ onSelect, onOpenUpgrade }) {
   const listedBusinesses = [
     {
       name: 'ApexTech Solutions',
@@ -57,7 +57,7 @@ function Home({ onSelect }) {
       </div>
 
       {/* Featured Listed Businesses Section */}
-      <div style={{ marginTop: '56px' }}>
+      <div id="enterprise-directory" style={{ marginTop: '56px' }}>
         <h2 className="section-title">
           Listed Enterprise Businesses
         </h2>
@@ -96,7 +96,7 @@ function Home({ onSelect }) {
       </div>
 
       {/* Subscription Pricing Panel */}
-      <div style={{ marginTop: '72px' }}>
+      <div id="pricing-plans" style={{ marginTop: '72px' }}>
         <div style={{ textAlign: 'center', marginBottom: '36px' }}>
           <span className="badge-pill">Flexible Pricing</span>
           <h2 style={{ fontSize: '36px', fontWeight: '900', margin: '10px 0' }}>
@@ -125,7 +125,7 @@ function Home({ onSelect }) {
               <li>Single user seat</li>
             </ul>
 
-            <button className="btn secondary" onClick={() => onSelect('ticket')}>
+            <button className="btn secondary" onClick={() => onOpenUpgrade('Free')}>
               Get Started Free
             </button>
           </div>
@@ -149,7 +149,7 @@ function Home({ onSelect }) {
               <li>Analytics & response SLA reports</li>
             </ul>
 
-            <button className="btn primary" onClick={() => onSelect('profile')}>
+            <button className="btn primary" onClick={() => onOpenUpgrade('Gold')}>
               Subscribe to Gold Plan
             </button>
           </div>
@@ -172,8 +172,8 @@ function Home({ onSelect }) {
               <li>Custom API & webhook integrations</li>
             </ul>
 
-            <button className="btn secondary" onClick={() => onSelect('ticket')}>
-              Submit Enterprise Ticket
+            <button className="btn secondary" onClick={() => onOpenUpgrade('Premium')}>
+              Subscribe to Premium Enterprise
             </button>
           </div>
         </div>

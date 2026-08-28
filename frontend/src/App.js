@@ -7,6 +7,8 @@ import Dashboard from './Dashboard';
 import TicketDetail from './TicketDetail';
 import ProfilePage from './ProfilePage';
 import AuthModal from './AuthModal';
+import AboutModal from './AboutModal';
+import UpgradeModal from './UpgradeModal';
 import Footer from './Footer';
 import { supabase } from './supabaseClient';
 
@@ -18,10 +20,21 @@ function App() {
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [user, setUser] = useState(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showAboutModal, setShowAboutModal] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [upgradeTargetPlan, setUpgradeTargetPlan] = useState('Gold');
+  const [userPlanBadge, setUserPlanBadge] = useState(
+    localStorage.getItem('userPlanBadge') || 'Gold Plan Member'
+  );
   const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
   const [avatarUrl, setAvatarUrl] = useState(
     localStorage.getItem('userAvatar') || DEFAULT_AVATAR
   );
+
+  // Smooth scroll to top whenever page view changes
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [view]);
 
   useEffect(() => {
     document.body.setAttribute('data-theme', theme);
@@ -49,6 +62,16 @@ function App() {
   const handleUpdateAvatar = (newUrl) => {
     setAvatarUrl(newUrl);
     localStorage.setItem('userAvatar', newUrl);
+  };
+
+  const openUpgradeModal = (planName) => {
+    setUpgradeTargetPlan(planName);
+    setShowUpgradeModal(true);
+  };
+
+  const handleConfirmPlan = (planKey, badgeText) => {
+    setUserPlanBadge(badgeText);
+    localStorage.setItem('userPlanBadge', badgeText);
   };
 
   const handleSignOut = async () => {
@@ -157,7 +180,7 @@ function App() {
 
       {/* Main View Router */}
       <main>
-        {view === 'home' && <Home onSelect={setView} />}
+        {view === 'home' && <Home onSelect={setView} onOpenUpgrade={openUpgradeModal} />}
         {view === 'dashboard' && <Dashboard user={user} onSelectTicket={openTicket} />}
         {view === 'ticket' && <TicketPage user={user} onGoChat={() => setView('chat')} />}
         {view === 'chat' && (
@@ -170,6 +193,7 @@ function App() {
         {view === 'profile' && (
           <ProfilePage
             user={user}
+            planBadge={userPlanBadge}
             currentAvatar={avatarUrl}
             onUpdateAvatar={handleUpdateAvatar}
           />
@@ -180,8 +204,9 @@ function App() {
       </main>
 
       {/* Enterprise Footer */}
-      <Footer onNavigate={setView} />
+      <Footer onNavigate={setView} onOpenAbout={() => setShowAboutModal(true)} />
 
+      {/* Modals */}
       <AuthModal
         isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}
@@ -189,6 +214,18 @@ function App() {
           setUser(authUser);
           setShowAuthModal(false);
         }}
+      />
+
+      <AboutModal
+        isOpen={showAboutModal}
+        onClose={() => setShowAboutModal(false)}
+      />
+
+      <UpgradeModal
+        isOpen={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        targetPlan={upgradeTargetPlan}
+        onConfirmPlan={handleConfirmPlan}
       />
     </div>
   );

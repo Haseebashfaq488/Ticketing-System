@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-function Footer({ onNavigate }) {
+function Footer({ onNavigate, onOpenAbout }) {
   const [newsletterEmail, setNewsletterEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
 
@@ -12,6 +12,14 @@ function Footer({ onNavigate }) {
       setSubscribed(false);
       setNewsletterEmail('');
     }, 3000);
+  };
+
+  const scrollToSection = (id) => {
+    onNavigate('home');
+    setTimeout(() => {
+      const el = document.getElementById(id);
+      if (el) el.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
   };
 
   return (
@@ -39,7 +47,7 @@ function Footer({ onNavigate }) {
               <li><button onClick={() => onNavigate('dashboard')}>Support Dashboard</button></li>
               <li><button onClick={() => onNavigate('ticket')}>Submit Ticket</button></li>
               <li><button onClick={() => onNavigate('chat')}>Live Chat AI</button></li>
-              <li><button onClick={() => onNavigate('home')}>Subscription Plans</button></li>
+              <li><button onClick={() => scrollToSection('pricing-plans')}>Subscription Plans</button></li>
             </ul>
           </div>
 
@@ -47,8 +55,8 @@ function Footer({ onNavigate }) {
           <div className="footer-links-col">
             <h4>Company</h4>
             <ul>
-              <li><button onClick={() => onNavigate('home')}>About Us</button></li>
-              <li><button onClick={() => onNavigate('home')}>Enterprise Directory</button></li>
+              <li><button onClick={onOpenAbout}>About Us</button></li>
+              <li><button onClick={() => scrollToSection('enterprise-directory')}>Enterprise Directory</button></li>
               <li><button onClick={() => onNavigate('profile')}>User Profile Settings</button></li>
             </ul>
           </div>
