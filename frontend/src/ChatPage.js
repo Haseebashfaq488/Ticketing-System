@@ -65,7 +65,7 @@ function ChatPage({ user, onGoTicket, onSelectTicket }) {
         {/* Left Sidebar: Active Conversations */}
         <div className="chat-sidebar">
           <div style={{ fontWeight: '700', fontSize: '14px', marginBottom: '8px' }}>
-            Active Sessions
+            Active Session
           </div>
 
           <div className="chat-thread-list">
@@ -81,21 +81,6 @@ function ChatPage({ user, onGoTicket, onSelectTicket }) {
               <div>
                 <div style={{ fontWeight: '700', fontSize: '13px' }}>AI Live Assistant</div>
                 <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Online 24/7</div>
-              </div>
-            </button>
-
-            <button className="chat-thread-item">
-              <span
-                style={{
-                  width: '10px',
-                  height: '10px',
-                  borderRadius: '50%',
-                  background: 'var(--accent-amber)',
-                }}
-              />
-              <div>
-                <div style={{ fontWeight: '700', fontSize: '13px' }}>Tier-2 Agent Support</div>
-                <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Standby</div>
               </div>
             </button>
           </div>

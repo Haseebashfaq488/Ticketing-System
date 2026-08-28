@@ -172,8 +172,8 @@ function Home({ onSelect }) {
               <li>Custom API & webhook integrations</li>
             </ul>
 
-            <button className="btn secondary" onClick={() => onSelect('profile')}>
-              Contact Enterprise Sales
+            <button className="btn secondary" onClick={() => onSelect('ticket')}>
+              Submit Enterprise Ticket
             </button>
           </div>
         </div>

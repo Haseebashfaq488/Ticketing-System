@@ -50,7 +50,6 @@ function Footer({ onNavigate }) {
               <li><button onClick={() => onNavigate('home')}>About Us</button></li>
               <li><button onClick={() => onNavigate('home')}>Enterprise Directory</button></li>
               <li><button onClick={() => onNavigate('profile')}>User Profile Settings</button></li>
-              <li><button onClick={() => onNavigate('home')}>Security & Compliance</button></li>
             </ul>
           </div>
 
@@ -88,11 +87,6 @@ function Footer({ onNavigate }) {
         <div className="footer-bottom">
           <div className="footer-copyright">
             © {new Date().getFullYear()} NovaWare AI Ticketing System. All rights reserved.
-          </div>
-          <div className="footer-legal-links">
-            <span>Privacy Policy</span>
-            <span>Terms of Service</span>
-            <span>Cookie Preferences</span>
           </div>
         </div>
       </div>
