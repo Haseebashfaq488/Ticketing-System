@@ -191,62 +191,64 @@ function Dashboard({ user, onSelectTicket }) {
           />
         </div>
 
-        {/* Tickets Data Table */}
-        <table className="ticket-table">
-          <thead>
-            <tr>
-              <th>Ticket ID</th>
-              <th>Customer</th>
-              <th>Subject & AI Analysis Summary</th>
-              <th>Category</th>
-              <th>Priority</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredTickets.map((t) => (
-              <tr key={t.id} onClick={() => onSelectTicket(t.id)}>
-                <td style={{ fontWeight: '700', color: 'var(--accent-purple)' }}>{t.id}</td>
-                <td style={{ fontSize: '13px' }}>{t.customer}</td>
-                <td>
-                  <div style={{ fontWeight: '600' }}>{t.subject}</div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                    🤖 AI Reasoning ({t.aiDiagnosis.model}): {t.aiDiagnosis.reasoning}
-                  </div>
-                </td>
-                <td>
-                  <span
-                    style={{
-                      fontSize: '11px',
-                      padding: '3px 8px',
-                      borderRadius: '6px',
-                      background: 'var(--bg-input)',
-                      fontWeight: '700',
-                    }}
-                  >
-                    {t.category}
-                  </span>
-                </td>
-                <td>
-                  <span
-                    style={{
-                      fontSize: '11px',
-                      fontWeight: '800',
-                      color: t.priority === 'HIGH' || t.priority === 'CRITICAL' ? 'var(--accent-rose)' : 'var(--accent-cyan)',
-                    }}
-                  >
-                    {t.priority}
-                  </span>
-                </td>
-                <td>
-                  <span className={`status-badge status-${t.status.toLowerCase().replace(/_/g, '-')}`}>
-                    {t.status.replace(/_/g, ' ')}
-                  </span>
-                </td>
+        {/* Responsive Table Wrapper */}
+        <div className="table-responsive-wrapper">
+          <table className="ticket-table">
+            <thead>
+              <tr>
+                <th>Ticket ID</th>
+                <th>Customer</th>
+                <th>Subject & AI Analysis Summary</th>
+                <th>Category</th>
+                <th>Priority</th>
+                <th>Status</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {filteredTickets.map((t) => (
+                <tr key={t.id} onClick={() => onSelectTicket(t.id)}>
+                  <td style={{ fontWeight: '700', color: 'var(--accent-purple)' }}>{t.id}</td>
+                  <td style={{ fontSize: '13px' }}>{t.customer}</td>
+                  <td>
+                    <div style={{ fontWeight: '600' }}>{t.subject}</div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                      AI Reasoning ({t.aiDiagnosis.model}): {t.aiDiagnosis.reasoning}
+                    </div>
+                  </td>
+                  <td>
+                    <span
+                      style={{
+                        fontSize: '11px',
+                        padding: '3px 8px',
+                        borderRadius: '6px',
+                        background: 'var(--bg-input)',
+                        fontWeight: '700',
+                      }}
+                    >
+                      {t.category}
+                    </span>
+                  </td>
+                  <td>
+                    <span
+                      style={{
+                        fontSize: '11px',
+                        fontWeight: '800',
+                        color: t.priority === 'HIGH' || t.priority === 'CRITICAL' ? 'var(--accent-rose)' : 'var(--accent-cyan)',
+                      }}
+                    >
+                      {t.priority}
+                    </span>
+                  </td>
+                  <td>
+                    <span className={`status-badge status-${t.status.toLowerCase().replace(/_/g, '-')}`}>
+                      {t.status.replace(/_/g, ' ')}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
