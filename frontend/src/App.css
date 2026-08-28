@@ -26,7 +26,7 @@
   --shadow-sm: 0 4px 14px rgba(0, 0, 0, 0.3);
   --shadow-glow: 0 0 25px rgba(99, 102, 241, 0.3);
   --shadow-glow-gold: 0 0 25px rgba(245, 158, 11, 0.3);
-  --topbar-bg: rgba(11, 15, 25, 0.85);
+  --topbar-bg: rgba(11, 15, 25, 0.9);
   --overlay-bg: rgba(3, 7, 18, 0.75);
   --footer-bg: #070a12;
 }
@@ -55,7 +55,7 @@
   --shadow-sm: 0 4px 14px rgba(0, 0, 0, 0.08);
   --shadow-glow: 0 8px 25px rgba(79, 70, 229, 0.18);
   --shadow-glow-gold: 0 8px 25px rgba(217, 119, 6, 0.18);
-  --topbar-bg: rgba(248, 250, 252, 0.85);
+  --topbar-bg: rgba(248, 250, 252, 0.9);
   --overlay-bg: rgba(15, 23, 42, 0.45);
   --footer-bg: #f1f5f9;
 }
@@ -90,12 +90,12 @@ main {
   width: 100%;
   max-width: 1240px;
   margin: 0 auto;
-  padding: 32px 24px 64px;
+  padding: 96px 24px 64px; /* Offset for fixed sticky topbar */
 }
 
 @media (max-width: 768px) {
   main {
-    padding: 20px 16px 48px;
+    padding: 80px 16px 48px;
   }
 }
 
@@ -128,31 +128,37 @@ main {
 }
 
 /* ==========================================================================
-   TOPBAR NAVIGATION (SLEEK & MOBILE HAMBURGER)
+   TOPBAR NAVIGATION (FIXED STICKY SCROLL & CENTERED NAV ON DESKTOP)
    ========================================================================== */
 
 .topbar {
-  display: flex;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  z-index: 1000;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: space-between;
-  padding: 14px 28px;
+  padding: 12px 32px;
   background: var(--topbar-bg);
   border-bottom: 1px solid var(--border-color);
-  position: sticky;
-  top: 0;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  z-index: 100;
-  width: 100%;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
 }
 
-@media (max-width: 768px) {
+@media (max-width: 900px) {
   .topbar {
+    display: flex;
+    justify-content: space-between;
     padding: 12px 16px;
   }
 }
 
 .brand {
+  justify-self: start;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -187,8 +193,9 @@ main {
   }
 }
 
-/* Desktop Nav Container */
+/* Desktop Nav Container (Mathematically Centered) */
 .desktop-nav {
+  justify-self: center;
   display: flex;
   align-items: center;
   gap: 4px;
@@ -210,7 +217,7 @@ main {
   color: var(--text-secondary);
   font-size: 13px;
   font-weight: 600;
-  padding: 8px 14px;
+  padding: 8px 16px;
   border-radius: 8px;
   cursor: pointer;
   display: flex;
@@ -230,12 +237,12 @@ main {
   box-shadow: var(--shadow-glow);
 }
 
-/* Right-Side Topbar Actions (Always on the right!) */
+/* Right-Side Topbar Actions */
 .topbar-actions {
+  justify-self: end;
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-left: auto;
 }
 
 .theme-toggle-btn {
@@ -325,12 +332,14 @@ main {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  position: sticky;
-  top: 67px;
-  z-index: 99;
+  position: fixed;
+  top: 63px;
+  left: 0;
+  right: 0;
+  z-index: 999;
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 14px 35px rgba(0, 0, 0, 0.4);
 }
 
 .mobile-nav-item {
@@ -452,7 +461,7 @@ main {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: 1500;
   padding: 16px;
 }
 
@@ -982,7 +991,7 @@ main {
   display: grid;
   grid-template-columns: 260px 1fr 240px;
   gap: 16px;
-  height: calc(100vh - 160px);
+  height: calc(100vh - 180px);
   min-height: 520px;
 }
 
