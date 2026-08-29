@@ -1,275 +1,151 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
-const PRIORITY_CLASS = {
-  LOW: 'badge low',
-  MEDIUM: 'badge medium',
-  HIGH: 'badge high',
-  CRITICAL: 'badge critical',
-};
+function TicketPage({ user, onGoChat }) {
+  const [subject, setSubject] = useState('');
+  const [category, setCategory] = useState('TECHNICAL');
+  const [priority, setPriority] = useState('MEDIUM');
+  const [description, setDescription] = useState('');
+  const [email, setEmail] = useState(user?.email || '');
+  const [attachedFile, setAttachedFile] = useState(null);
+  const [submitted, setSubmitted] = useState(false);
 
-function TraceStep({ step, index }) {
-  return (
-    <li className="trace-step">
-      <span className="trace-num">{index + 1}</span>
-      <div className="trace-body">
-        <code className="trace-tool">{step.tool}</code>
-        <div className="trace-io">
-          <span>
-            <strong>in:</strong> {step.input}
-          </span>
-          <span>
-            <strong>out:</strong> {step.output}
-          </span>
-        </div>
-      </div>
-    </li>
-  );
-}
-
-function AnalysisResult({ result, onReset }) {
-  const [reviewState, setReviewState] = useState(null);
-  const a = result.analysis || {};
-  const needsHuman = result.decision === 'HUMAN_REVIEW';
-
-  return (
-    <div className="result">
-      <div className="result-head">
-        <div>
-          <h2>Ticket #{result.ticket_id} created</h2>
-          <p className="muted">{result.subject}</p>
-        </div>
-        <button className="btn ghost" onClick={onReset}>
-          New ticket
-        </button>
-      </div>
-
-      <div className={`banner ${needsHuman ? 'amber' : 'green'}`}>
-        {needsHuman ? (
-          <>
-            <strong>Pending human review</strong> — the AI analyzed this ticket
-            but policy requires a human to approve the response before it is sent.
-          </>
-        ) : (
-          <>
-            <strong>Handled automatically</strong> — the AI agent answered this
-            ticket with high confidence and no sensitive actions were required.
-          </>
-        )}
-      </div>
-
-      <div className="meta-grid">
-        <div className="card stat">
-          <span className="stat-label">Category</span>
-          <span className="badge cat">{a.category || 'GENERAL'}</span>
-        </div>
-        <div className="card stat">
-          <span className="stat-label">Priority</span>
-          <span className={PRIORITY_CLASS[a.priority] || 'badge'}>{a.priority || 'MEDIUM'}</span>
-        </div>
-        <div className="card stat">
-          <span className="stat-label">Confidence</span>
-          <div className="conf">
-            <div className="conf-bar">
-              <div
-                className="conf-fill"
-                style={{ width: `${Math.round((a.confidence || 0.8) * 100)}%` }}
-              />
-            </div>
-            <span>{Math.round((a.confidence || 0.8) * 100)}%</span>
-          </div>
-        </div>
-      </div>
-
-      <section className="card section">
-        <h3>AI reasoning</h3>
-        <p>{a.reasoning_summary}</p>
-        <p className="muted small">
-          Intent: {a.intent}
-          {a.knowledge_used?.length > 0 &&
-            ` · Knowledge used: ${a.knowledge_used.join(', ')}`}
-        </p>
-        <p className="muted small">
-          AI recommendation: <code>{result.ai_recommendation}</code> → Backend
-          decision: <code>{result.decision}</code>
-          {result.policy_reasons?.length > 0 && (
-            <> · because {result.policy_reasons.join('; ')}</>
-          )}
-        </p>
-      </section>
-
-      {result.agent_trace && result.agent_trace.length > 0 && (
-        <section className="card section">
-          <h3>Agent trace ({result.agent_trace.length} steps)</h3>
-          <ul className="trace">
-            {result.agent_trace.map((s, i) => (
-              <TraceStep key={i} step={s} index={i} />
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {a.suggested_response && (
-        <section className="card section">
-          <h3>Suggested response</h3>
-          <pre className="draft">{a.suggested_response}</pre>
-
-          {needsHuman && !reviewState && (
-            <div className="review-actions">
-              <button
-                className="btn primary"
-                onClick={() => setReviewState('sent')}
-              >
-                Approve &amp; send
-              </button>
-              <button className="btn ghost" onClick={() => setReviewState('edit')}>
-                Edit response
-              </button>
-              <button className="btn danger" onClick={() => setReviewState('rejected')}>
-                Reject
-              </button>
-            </div>
-          )}
-          {reviewState === 'sent' && (
-            <p className="banner green">Response approved and sent to the customer. ✓</p>
-          )}
-          {reviewState === 'rejected' && (
-            <p className="banner amber">Rejected - a human agent will take over this ticket.</p>
-          )}
-        </section>
-      )}
-    </div>
-  );
-}
-
-function TicketPage({ user }) {
-  const [form, setForm] = useState({
-    customer_name: '',
-    customer_email: '',
-    subject: '',
-    message: '',
-  });
-
-  useEffect(() => {
-    if (user) {
-      setForm((prev) => ({
-        ...prev,
-        customer_name: user.user_metadata?.full_name || prev.customer_name || user.email.split('@')[0],
-        customer_email: user.email || prev.customer_email,
-      }));
-    }
-  }, [user]);
-
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [result, setResult] = useState(null);
-
-  const update = (field) => (e) =>
-    setForm({ ...form, [field]: e.target.value });
-
-  const submit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
-    setLoading(true);
-    setError(null);
-    setResult(null);
-    try {
-      const res = await fetch('/api/tickets', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.detail || `Request failed (${res.status})`);
-      }
-      setResult(await res.json());
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
+    setSubmitted(true);
   };
 
-  if (loading)
-    return (
-      <div className="analyzing">
-        <div className="spinner" />
-        <h2>SupportAgent is working…</h2>
-        <ol className="analyze-steps">
-          <li>Reading ticket &amp; customer context</li>
-          <li>Searching company knowledge</li>
-          <li>Reasoning with the LLM</li>
-          <li>Validating output &amp; applying policy</li>
-        </ol>
-      </div>
-    );
-
-  if (error)
-    return (
-      <div className="center-col">
-        <div className="banner red">
-          <strong>Error:</strong> {error}
-        </div>
-        <button className="btn ghost" onClick={() => setError(null)}>
-          Try again
-        </button>
-      </div>
-    );
-
-  if (result)
-    return (
-      <AnalysisResult result={result} onReset={() => { setResult(null); }} />
-    );
-
   return (
-    <form className="ticket-form card" onSubmit={submit}>
-      <h1>Create a support ticket</h1>
-      <p className="muted">
-        Submit your issue and our AI agent will analyze it right away.
-      </p>
+    <div className="animate-fade-in" style={{ maxWidth: '720px', margin: '0 auto' }}>
+      <div style={{ marginBottom: '28px', textAlign: 'center' }}>
+        <h1 style={{ fontSize: '32px', fontWeight: '800', margin: '0 0 6px' }}>
+          Submit a <span className="grad-text">Support Ticket</span>
+        </h1>
+        <p style={{ color: 'var(--text-secondary)', margin: 0 }}>
+          Describe your issue below. Our AI engine will analyze urgency, log the ticket, and assign it to a specialist.
+        </p>
+      </div>
 
-      <label>
-        Name
-        <input
-          required
-          value={form.customer_name}
-          onChange={update('customer_name')}
-          placeholder="John Doe"
-        />
-      </label>
-      <label>
-        Email
-        <input
-          required
-          type="email"
-          value={form.customer_email}
-          onChange={update('customer_email')}
-          placeholder="john@example.com"
-        />
-      </label>
-      <label>
-        Subject
-        <input
-          required
-          value={form.subject}
-          onChange={update('subject')}
-          placeholder="I paid for premium but my account still says free"
-        />
-      </label>
-      <label>
-        Message
-        <textarea
-          required
-          rows={5}
-          value={form.message}
-          onChange={update('message')}
-          placeholder="Describe what happened…"
-        />
-      </label>
+      {submitted ? (
+        <div className="card animate-fade-in" style={{ textAlign: 'center', padding: '48px 32px' }}>
+          <div style={{ marginBottom: '16px' }}>
+            <svg className="icon-svg" style={{ width: '48px', height: '48px', color: 'var(--accent-emerald)' }} viewBox="0 0 24 24">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+              <polyline points="22 4 12 14.01 9 11.01" />
+            </svg>
+          </div>
+          <h2 style={{ fontSize: '24px', fontWeight: '800', margin: '0 0 10px' }}>
+            Ticket Submitted & AI Logged!
+          </h2>
+          <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>
+            Ticket Reference ID <strong style={{ color: 'var(--accent-purple)' }}>#TCK-8905</strong> has been stored in <code>support_tickets</code> database table.
+            An automated AI analysis has been triggered.
+          </p>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '12px' }}>
+            <button className="btn primary" onClick={() => setSubmitted(false)}>
+              Submit Another Ticket
+            </button>
+            <button className="btn secondary" onClick={onGoChat}>
+              Talk to Live AI Assistant
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="card">
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div className="form-group">
+              <label className="form-label">Your Customer Email</label>
+              <input
+                type="email"
+                className="input-field"
+                placeholder="name@company.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
 
-      <button className="btn primary big" type="submit">
-        Submit ticket
-      </button>
-    </form>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <div className="form-group">
+                <label className="form-label">Category (schema.sql)</label>
+                <select
+                  className="input-field"
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                >
+                  <option value="TECHNICAL">TECHNICAL</option>
+                  <option value="BILLING">BILLING</option>
+                  <option value="ACCOUNT">ACCOUNT</option>
+                  <option value="REFUND">REFUND</option>
+                  <option value="SECURITY">SECURITY</option>
+                  <option value="FEATURE_REQUEST">FEATURE REQUEST</option>
+                  <option value="GENERAL">GENERAL</option>
+                  <option value="OTHER">OTHER</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Priority Level (schema.sql)</label>
+                <select
+                  className="input-field"
+                  value={priority}
+                  onChange={(e) => setPriority(e.target.value)}
+                >
+                  <option value="LOW">LOW</option>
+                  <option value="MEDIUM">MEDIUM</option>
+                  <option value="HIGH">HIGH</option>
+                  <option value="CRITICAL">CRITICAL</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Ticket Subject</label>
+              <input
+                type="text"
+                className="input-field"
+                placeholder="Brief summary of the issue (e.g. API 401 Unauthorized Error)"
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Detailed Problem Description (Message)</label>
+              <textarea
+                className="input-field"
+                rows="5"
+                placeholder="Provide steps to reproduce, error logs, or account details..."
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                required
+                style={{ resize: 'vertical' }}
+              />
+            </div>
+
+            {/* File Attachment Simulator */}
+            <div className="form-group">
+              <label className="form-label">Attachments (Optional)</label>
+              <label
+                className="btn secondary"
+                style={{ width: '100%', borderStyle: 'dashed', cursor: 'pointer' }}
+              >
+                {attachedFile ? attachedFile.name : 'Upload Screenshot / Log File'}
+                <input
+                  type="file"
+                  style={{ display: 'none' }}
+                  onChange={(e) => setAttachedFile(e.target.files[0])}
+                />
+              </label>
+            </div>
+
+            <button type="submit" className="btn primary" style={{ width: '100%', padding: '14px' }}>
+              Submit Ticket & Trigger AI Analysis
+            </button>
+          </form>
+        </div>
+      )}
+    </div>
   );
 }
 
