@@ -1,89 +1,56 @@
-import { useState } from 'react';
-
-const INITIAL_TICKETS = [
-  {
-    id: 'TCK-8901',
-    customerId: 1,
-    customer: 'John Doe (john@example.com)',
-    subject: 'Cannot access API endpoint in production',
-    category: 'TECHNICAL',
-    status: 'ESCALATED',
-    priority: 'HIGH',
-    created: '10 mins ago',
-    aiDiagnosis: {
-      intent: 'API Access Failure',
-      confidence: 0.94,
-      reasoning: 'Suspected API key rate limit or missing Bearer authorization header.',
-      recommendedAction: 'Verify API Key status in customers table & refresh rate limits.',
-      model: 'gemini-3.6-flash',
-    },
-  },
-  {
-    id: 'TCK-8902',
-    customerId: 2,
-    customer: 'Sarah Smith (sarah@example.com)',
-    subject: 'Request for Gold Subscription Invoice',
-    category: 'BILLING',
-    status: 'WAITING_FOR_CUSTOMER',
-    priority: 'MEDIUM',
-    created: '25 mins ago',
-    aiDiagnosis: {
-      intent: 'Billing Receipt Dispatch',
-      confidence: 0.98,
-      reasoning: 'Billing invoice request; requires account agent verification of payment_status.',
-      recommendedAction: 'Send automated invoice PDF to customer email.',
-      model: 'gemini-3.6-flash',
-    },
-  },
-  {
-    id: 'TCK-8903',
-    customerId: 3,
-    customer: 'Alex Kim (alex@example.com)',
-    subject: 'Custom webhook payload configuration inquiry',
-    category: 'FEATURE_REQUEST',
-    status: 'OPEN',
-    priority: 'LOW',
-    created: '1 hour ago',
-    aiDiagnosis: {
-      intent: 'Documentation Query',
-      confidence: 0.91,
-      reasoning: 'Documentation match found for Webhook v2 integration schema.',
-      recommendedAction: 'Provide Webhook v2 payload documentation link.',
-      model: 'gemini-3.6-flash',
-    },
-  },
-  {
-    id: 'TCK-8904',
-    customerId: 1,
-    customer: 'John Doe (john@example.com)',
-    subject: 'Password reset email link expired',
-    category: 'SECURITY',
-    status: 'RESOLVED',
-    priority: 'MEDIUM',
-    created: '3 hours ago',
-    aiDiagnosis: {
-      intent: 'Password Reset',
-      confidence: 0.99,
-      reasoning: 'Auto-resolved via magic link dispatch in users table.',
-      recommendedAction: 'Trigger fresh password reset token.',
-      model: 'gemini-3.6-flash',
-    },
-  },
-];
+import { useState, useEffect } from 'react';
 
 function Dashboard({ user, onSelectTicket }) {
+  const [tickets, setTickets] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [filterStatus, setFilterStatus] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
+  const [deletingId, setDeletingId] = useState(null);
 
-  const filteredTickets = INITIAL_TICKETS.filter((t) => {
+  const loadTickets = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/tickets');
+      if (!res.ok) throw new Error(`Server responded with status ${res.status}`);
+      const data = await res.json();
+      setTickets(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setError('Could not load tickets from the server. Is the backend running on port 8000?');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadTickets();
+  }, []);
+
+  const filteredTickets = tickets.filter((t) => {
     const matchesFilter = filterStatus === 'ALL' || t.status === filterStatus;
-    const matchesSearch =
-      t.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.customer.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.category.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesFilter && matchesSearch;
+    const haystack = `${t.subject || ''} ${t.customer_name || ''} ${t.ticket_id} ${t.category || ''}`.toLowerCase();
+    return matchesFilter && haystack.includes(searchQuery.toLowerCase());
   });
+
+  const openCount = tickets.filter((t) => ['OPEN', 'IN_PROGRESS'].includes(t.status)).length;
+  const escalatedCount = tickets.filter((t) => t.status === 'ESCALATED').length;
+  const resolvedCount = tickets.filter((t) => ['RESOLVED', 'CLOSED'].includes(t.status)).length;
+
+  const handleDelete = async (e, ticketId) => {
+    e.stopPropagation(); // don't open the ticket detail page
+    if (!window.confirm(`Permanently delete ticket TCK-${ticketId}? This cannot be undone.`)) return;
+    setDeletingId(ticketId);
+    try {
+      const res = await fetch(`/api/tickets/${ticketId}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Delete failed');
+      setTickets((prev) => prev.filter((t) => t.ticket_id !== ticketId));
+    } catch (err) {
+      setError('Could not delete the ticket. Is the backend running?');
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   return (
     <div className="animate-fade-in">
@@ -106,12 +73,12 @@ function Dashboard({ user, onSelectTicket }) {
           </p>
         </div>
 
-        <button className="btn primary" onClick={() => onSelectTicket('TCK-8901')}>
-          Inspect High Priority Ticket
+        <button className="btn primary" onClick={loadTickets} disabled={loading}>
+          {loading ? 'Loading...' : '↻ Refresh Queue'}
         </button>
       </div>
 
-      {/* Stats Widgets */}
+      {/* Stats Widgets (computed from live tickets) */}
       <div className="stats-grid">
         <div className="stat-card">
           <div className="stat-icon">
@@ -120,8 +87,8 @@ function Dashboard({ user, onSelectTicket }) {
             </svg>
           </div>
           <div>
-            <div className="stat-value">124</div>
-            <div className="stat-label">Total Tickets Today</div>
+            <div className="stat-value">{tickets.length}</div>
+            <div className="stat-label">Total Tickets</div>
           </div>
         </div>
 
@@ -132,8 +99,22 @@ function Dashboard({ user, onSelectTicket }) {
             </svg>
           </div>
           <div>
-            <div className="stat-value" style={{ color: 'var(--accent-cyan)' }}>1.2 min</div>
-            <div className="stat-label">Avg AI Response Time</div>
+            <div className="stat-value" style={{ color: 'var(--accent-cyan)' }}>{openCount}</div>
+            <div className="stat-label">Open / In Progress</div>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon">
+            <svg className="icon-svg large" viewBox="0 0 24 24">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+              <line x1="12" y1="9" x2="12" y2="13" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+          </div>
+          <div>
+            <div className="stat-value" style={{ color: 'var(--accent-rose)' }}>{escalatedCount}</div>
+            <div className="stat-label">Escalated</div>
           </div>
         </div>
 
@@ -145,23 +126,8 @@ function Dashboard({ user, onSelectTicket }) {
             </svg>
           </div>
           <div>
-            <div className="stat-value" style={{ color: 'var(--accent-emerald)' }}>94.8%</div>
-            <div className="stat-label">Resolution Rate</div>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-icon">
-            <svg className="icon-svg large" viewBox="0 0 24 24">
-              <circle cx="12" cy="12" r="10" />
-              <path d="M8 14s1.5 2 4 2 4-2 4-2" />
-              <line x1="9" y1="9" x2="9.01" y2="9" />
-              <line x1="15" y1="9" x2="15.01" y2="9" />
-            </svg>
-          </div>
-          <div>
-            <div className="stat-value" style={{ color: 'var(--accent-amber)' }}>4.92 / 5</div>
-            <div className="stat-label">CSAT Score</div>
+            <div className="stat-value" style={{ color: 'var(--accent-emerald)' }}>{resolvedCount}</div>
+            <div className="stat-label">Resolved / Closed</div>
           </div>
         </div>
       </div>
@@ -198,54 +164,89 @@ function Dashboard({ user, onSelectTicket }) {
               <tr>
                 <th>Ticket ID</th>
                 <th>Customer</th>
-                <th>Subject & AI Analysis Summary</th>
+                <th>Subject</th>
                 <th>Category</th>
                 <th>Priority</th>
                 <th>Status</th>
+                <th>Created</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {filteredTickets.map((t) => (
-                <tr key={t.id} onClick={() => onSelectTicket(t.id)}>
-                  <td style={{ fontWeight: '700', color: 'var(--accent-purple)' }}>{t.id}</td>
-                  <td style={{ fontSize: '13px' }}>{t.customer}</td>
-                  <td>
-                    <div style={{ fontWeight: '600' }}>{t.subject}</div>
-                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                      AI Reasoning ({t.aiDiagnosis.model}): {t.aiDiagnosis.reasoning}
-                    </div>
-                  </td>
-                  <td>
-                    <span
-                      style={{
-                        fontSize: '11px',
-                        padding: '3px 8px',
-                        borderRadius: '6px',
-                        background: 'var(--bg-input)',
-                        fontWeight: '700',
-                      }}
-                    >
-                      {t.category}
-                    </span>
-                  </td>
-                  <td>
-                    <span
-                      style={{
-                        fontSize: '11px',
-                        fontWeight: '800',
-                        color: t.priority === 'HIGH' || t.priority === 'CRITICAL' ? 'var(--accent-rose)' : 'var(--accent-cyan)',
-                      }}
-                    >
-                      {t.priority}
-                    </span>
-                  </td>
-                  <td>
-                    <span className={`status-badge status-${t.status.toLowerCase().replace(/_/g, '-')}`}>
-                      {t.status.replace(/_/g, ' ')}
-                    </span>
+              {loading ? (
+                <tr>
+                  <td colSpan="8" style={{ textAlign: 'center', padding: '32px', color: 'var(--text-secondary)' }}>
+                    Loading tickets from database...
                   </td>
                 </tr>
-              ))}
+              ) : error ? (
+                <tr>
+                  <td colSpan="8" style={{ textAlign: 'center', padding: '32px', color: 'var(--accent-rose)' }}>
+                    {error}
+                  </td>
+                </tr>
+              ) : filteredTickets.length === 0 ? (
+                <tr>
+                  <td colSpan="8" style={{ textAlign: 'center', padding: '32px', color: 'var(--text-secondary)' }}>
+                    No tickets found. Submit a ticket or convert a live chat to create one.
+                  </td>
+                </tr>
+              ) : (
+                filteredTickets.map((t) => (
+                  <tr key={t.ticket_id} onClick={() => onSelectTicket(t.ticket_id)}>
+                    <td style={{ fontWeight: '700', color: 'var(--accent-purple)' }}>
+                      TCK-{t.ticket_id}
+                    </td>
+                    <td style={{ fontSize: '13px' }}>{t.customer_name || 'Unknown'}</td>
+                    <td>
+                      <div style={{ fontWeight: '600' }}>{t.subject}</div>
+                    </td>
+                    <td>
+                      <span
+                        style={{
+                          fontSize: '11px',
+                          padding: '3px 8px',
+                          borderRadius: '6px',
+                          background: 'var(--bg-input)',
+                          fontWeight: '700',
+                        }}
+                      >
+                        {t.category || '—'}
+                      </span>
+                    </td>
+                    <td>
+                      <span
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: '800',
+                          color: t.priority === 'HIGH' || t.priority === 'CRITICAL' ? 'var(--accent-rose)' : 'var(--accent-cyan)',
+                        }}
+                      >
+                        {t.priority || '—'}
+                      </span>
+                    </td>
+                    <td>
+                      <span className={`status-badge status-${(t.status || 'open').toLowerCase().replace(/_/g, '-')}`}>
+                        {(t.status || 'OPEN').replace(/_/g, ' ')}
+                      </span>
+                    </td>
+                    <td style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                      {t.created_at ? new Date(t.created_at).toLocaleDateString() : '—'}
+                    </td>
+                    <td>
+                      <button
+                        className="btn secondary small-btn"
+                        disabled={deletingId === t.ticket_id}
+                        onClick={(e) => handleDelete(e, t.ticket_id)}
+                        style={{ color: 'var(--accent-rose)', borderColor: 'var(--accent-rose)', padding: '4px 10px', fontSize: '11px' }}
+                        title={`Delete ticket TCK-${t.ticket_id}`}
+                      >
+                        {deletingId === t.ticket_id ? '...' : '🗑 Delete'}
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

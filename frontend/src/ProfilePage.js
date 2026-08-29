@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 const PRESET_AVATARS = [
   'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
@@ -11,19 +11,71 @@ const PRESET_AVATARS = [
   'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=200&q=80',
 ];
 
-function ProfilePage({ user, planBadge, currentAvatar, onUpdateAvatar }) {
+// Values mirror the `customers` table schema (backend/schema.sql).
+const PLAN_OPTIONS = ['free', 'gold', 'premium'];
+const ACCOUNT_STATUS_OPTIONS = ['active', 'restricted'];
+const PAYMENT_STATUS_OPTIONS = ['none', 'completed', 'failed'];
+
+const planBadgeText = (plan) => {
+  if (plan === 'premium') return 'Premium Plan Member';
+  if (plan === 'gold') return 'Gold Plan Member';
+  return 'Free Plan Member';
+};
+
+function ProfilePage({ user, planBadge, currentAvatar, onUpdateAvatar, onProfileSaved }) {
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [savedMessage, setSavedMessage] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+
+  // Fields persisted to the Supabase `customers` table.
+  const [customer, setCustomer] = useState(null);
+  const [fullName, setFullName] = useState('');
+  const [plan, setPlan] = useState('free');
+  const [accountStatus, setAccountStatus] = useState('active');
+  const [paymentStatus, setPaymentStatus] = useState('none');
+
+  // Local-only preferences (not stored in the customers table).
+  const [twoFactor, setTwoFactor] = useState(
+    localStorage.getItem('prefTwoFactor') === 'true'
+  );
+  const [emailAlerts, setEmailAlerts] = useState(
+    localStorage.getItem('prefEmailAlerts') !== 'false'
+  );
+
+  const email = user?.email || '';
   const [selectedAvatar, setSelectedAvatar] = useState(currentAvatar || PRESET_AVATARS[0]);
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
-  const [fullName, setFullName] = useState('Jane Cooper');
-  const [jobTitle, setJobTitle] = useState('Senior Support Lead');
-  const [email, setEmail] = useState(user?.email || 'jane.cooper@example.com');
-  const [notifications, setNotifications] = useState({
-    emailAlerts: true,
-    chatSound: true,
-    weeklyReport: false,
-  });
-  const [twoFactor, setTwoFactor] = useState(true);
-  const [savedMessage, setSavedMessage] = useState(false);
+
+  // Load the customer profile from the backend (backed by the Supabase customers table).
+  useEffect(() => {
+    let cancelled = false;
+    const loadProfile = async () => {
+      if (!email) {
+        setLoading(false);
+        return;
+      }
+      try {
+        const res = await fetch(`/api/profile?email=${encodeURIComponent(email)}`);
+        if (!res.ok) throw new Error(`Server responded with status ${res.status}`);
+        const data = await res.json();
+        if (cancelled) return;
+        setCustomer(data);
+        setFullName(data.name || email.split('@')[0]);
+        setPlan(data.plan || 'free');
+        setAccountStatus(data.account_status || 'active');
+        setPaymentStatus(data.payment_status || 'none');
+      } catch (err) {
+        if (!cancelled) setErrorMsg('Failed to load your profile from the server.');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    loadProfile();
+    return () => {
+      cancelled = true;
+    };
+  }, [email]);
 
   const handleAvatarSelect = (url) => {
     setSelectedAvatar(url);
@@ -41,11 +93,49 @@ function ProfilePage({ user, planBadge, currentAvatar, onUpdateAvatar }) {
     }
   };
 
-  const handleSaveProfile = (e) => {
+  const handleSaveProfile = async (e) => {
     e.preventDefault();
-    setSavedMessage(true);
-    setTimeout(() => setSavedMessage(false), 3000);
+    setErrorMsg('');
+    setSavedMessage(false);
+    setSaving(true);
+    try {
+      const res = await fetch('/api/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          name: fullName,
+          plan,
+          account_status: accountStatus,
+          payment_status: paymentStatus,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.detail || `Server responded with status ${res.status}`);
+
+      setCustomer(data);
+      if (onProfileSaved) onProfileSaved(data);
+
+      // Persist local-only preferences.
+      localStorage.setItem('prefTwoFactor', String(twoFactor));
+      localStorage.setItem('prefEmailAlerts', String(emailAlerts));
+
+      setSavedMessage(true);
+      setTimeout(() => setSavedMessage(false), 3000);
+    } catch (err) {
+      setErrorMsg(err.message || 'Failed to save your profile. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="animate-fade-in" style={{ textAlign: 'center', padding: '80px 20px' }}>
+        <h2 style={{ color: 'var(--text-secondary)' }}>Loading your profile…</h2>
+      </div>
+    );
+  }
 
   return (
     <div className="animate-fade-in">
@@ -73,7 +163,23 @@ function ProfilePage({ user, planBadge, currentAvatar, onUpdateAvatar }) {
             gap: '10px',
           }}
         >
-          ✓ Profile and preferences saved successfully!
+          ✓ Profile saved to your account successfully!
+        </div>
+      )}
+
+      {errorMsg && (
+        <div
+          style={{
+            background: 'rgba(239, 68, 68, 0.15)',
+            border: '1px solid #ef4444',
+            color: '#ef4444',
+            padding: '12px 20px',
+            borderRadius: '12px',
+            marginBottom: '24px',
+            fontWeight: '600',
+          }}
+        >
+          {errorMsg}
         </div>
       )}
 
@@ -96,14 +202,17 @@ function ProfilePage({ user, planBadge, currentAvatar, onUpdateAvatar }) {
 
           <div>
             <h2 style={{ fontSize: '20px', fontWeight: '800', margin: '8px 0 4px' }}>
-              {fullName}
+              {fullName || email}
             </h2>
             <p style={{ color: 'var(--text-secondary)', fontSize: '14px', margin: '0 0 12px' }}>
-              {jobTitle}
+              {email}
             </p>
             <span
               style={{
-                background: 'var(--accent-gradient-gold)',
+                background:
+                  paymentStatus === 'failed'
+                    ? '#ef4444'
+                    : 'var(--accent-gradient-gold)',
                 color: '#ffffff',
                 padding: '4px 14px',
                 borderRadius: '20px',
@@ -113,7 +222,7 @@ function ProfilePage({ user, planBadge, currentAvatar, onUpdateAvatar }) {
                 boxShadow: 'var(--shadow-glow-gold)',
               }}
             >
-              {planBadge || 'Gold Plan Member'}
+              {customer ? planBadgeText(customer.plan) : planBadge || 'Free Plan Member'}
             </span>
           </div>
 
@@ -181,25 +290,48 @@ function ProfilePage({ user, planBadge, currentAvatar, onUpdateAvatar }) {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Job Title / Role</label>
-                <input
-                  type="text"
+                <label className="form-label">Plan</label>
+                <select
                   className="input-field"
-                  value={jobTitle}
-                  onChange={(e) => setJobTitle(e.target.value)}
-                />
+                  value={plan}
+                  onChange={(e) => setPlan(e.target.value)}
+                >
+                  {PLAN_OPTIONS.map((p) => (
+                    <option key={p} value={p}>{p}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Account Status</label>
+                <select
+                  className="input-field"
+                  value={accountStatus}
+                  onChange={(e) => setAccountStatus(e.target.value)}
+                >
+                  {ACCOUNT_STATUS_OPTIONS.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Payment Status</label>
+                <select
+                  className="input-field"
+                  value={paymentStatus}
+                  onChange={(e) => setPaymentStatus(e.target.value)}
+                >
+                  {PAYMENT_STATUS_OPTIONS.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
               </div>
             </div>
 
             <div className="form-group">
-              <label className="form-label">Email Address</label>
-              <input
-                type="email"
-                className="input-field"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
+              <label className="form-label">Email Address (account identifier — read only)</label>
+              <input type="email" className="input-field" value={email} disabled />
             </div>
 
             <hr style={{ borderColor: 'var(--border-color)', margin: '8px 0' }} />
@@ -232,17 +364,15 @@ function ProfilePage({ user, planBadge, currentAvatar, onUpdateAvatar }) {
               </div>
               <input
                 type="checkbox"
-                checked={notifications.emailAlerts}
-                onChange={(e) =>
-                  setNotifications({ ...notifications, emailAlerts: e.target.checked })
-                }
+                checked={emailAlerts}
+                onChange={(e) => setEmailAlerts(e.target.checked)}
                 style={{ width: '18px', height: '18px', accentColor: 'var(--accent-purple)' }}
               />
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '12px' }}>
-              <button type="submit" className="btn primary">
-                Save Profile Changes
+              <button type="submit" className="btn primary" disabled={saving}>
+                {saving ? 'Saving…' : 'Save Profile Changes'}
               </button>
             </div>
           </form>

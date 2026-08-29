@@ -56,6 +56,57 @@ def get_customer_history(email: str) -> list:
         return []
 
 
+def get_or_create_customer_profile(email: str) -> dict:
+    """Return the full customers row for an email, creating a default row if missing.
+
+    Used by the profile page so any signed-in user always has an editable row.
+    """
+    email = (email or "").strip().lower()
+    if not email:
+        return {}
+    try:
+        res = _sb().table("customers").select("*").eq("email", email).execute()
+        if res.data:
+            return res.data[0]
+        ins = (
+            _sb()
+            .table("customers")
+            .insert({"name": email.split("@")[0], "email": email})
+            .execute()
+        )
+        if ins.data:
+            return ins.data[0]
+    except Exception:
+        pass
+    # Fallback so the UI can still render if the DB is unreachable.
+    return {
+        "id": None,
+        "name": email.split("@")[0],
+        "email": email,
+        "plan": "free",
+        "account_status": "active",
+        "payment_status": "none",
+        "subscription_status": "free_plan",
+        "created_at": None,
+    }
+
+
+def update_customer_profile(email: str, fields: dict) -> dict:
+    """Update editable profile columns on the customers row."""
+    email = (email or "").strip().lower()
+    allowed = {"name", "plan", "account_status", "payment_status", "subscription_status"}
+    payload = {k: v for k, v in fields.items() if k in allowed and v is not None}
+    if not payload:
+        return {"error": "no valid fields to update"}
+    try:
+        res = _sb().table("customers").update(payload).eq("email", email).execute()
+        if res.data:
+            return res.data[0]
+        return {"error": "customer not found"}
+    except Exception as e:
+        return {"error": str(e)}
+
+
 def search_knowledge(query: str) -> list:
     """Search the company knowledge base (lives in Python, not DB)."""
     docs = knowledge.search_knowledge(query)
@@ -111,6 +162,18 @@ def update_ticket(ticket_id: int, updates: dict) -> dict:
     try:
         res = _sb().table("support_tickets").update(updates).eq("id", ticket_id).execute()
         return res.data[0] if res.data else {}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+def delete_ticket(ticket_id: int) -> dict:
+    """Delete a ticket and its dependent rows (analysis, activity, messages)."""
+    try:
+        # Clean up dependent rows first to avoid FK violations.
+        for table, col in (("ai_analyses", "ticket_id"), ("activity_logs", "ticket_id")):
+            _sb().table(table).delete().eq(col, ticket_id).execute()
+        res = _sb().table("support_tickets").delete().eq("id", ticket_id).execute()
+        return {"deleted": bool(res.data)}
     except Exception as e:
         return {"error": str(e)}
 

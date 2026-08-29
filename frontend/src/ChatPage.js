@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 const SUGGESTED_PROMPTS = [
   'What are your support hours?',
@@ -7,47 +7,169 @@ const SUGGESTED_PROMPTS = [
   'Escalate to a human support agent',
 ];
 
-function ChatPage({ user, onGoTicket, onSelectTicket }) {
-  const [messages, setMessages] = useState([
-    {
-      id: 1,
-      sender: 'bot',
-      text: 'Hello! I am your AI Support Assistant powered by NovaWare. How can I assist you with your account, billing, or technical tickets today?',
-      time: 'Just now',
-    },
-  ]);
+const CHAT_STORAGE_KEY = 'novaware_live_chat';
+const WELCOME_MESSAGE = {
+  id: 1,
+  sender: 'bot',
+  text: 'Hello! I am your AI Support Assistant powered by NovaWare. How can I assist you with your account, billing, or technical tickets today?',
+  time: 'Just now',
+};
+
+function loadStoredChat() {
+  try {
+    const raw = sessionStorage.getItem(CHAT_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed.messages) && parsed.messages.length > 0) {
+        return parsed;
+      }
+    }
+  } catch {
+    /* ignore corrupt storage */
+  }
+  return null;
+}
+
+function ChatPage({ user, onGoTicket, onSelectTicket, onConverted }) {
+  const stored = loadStoredChat();
+  const [messages, setMessages] = useState(
+    stored ? stored.messages : [WELCOME_MESSAGE]
+  );
+  const [conversationId, setConversationId] = useState(
+    stored ? stored.conversationId : null
+  );
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [converting, setConverting] = useState(false);
 
-  const handleSend = (textToSend) => {
+  // Keep chat alive across page reloads within the browser session
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(
+        CHAT_STORAGE_KEY,
+        JSON.stringify({ messages, conversationId })
+      );
+    } catch {
+      /* storage full / unavailable */
+    }
+  }, [messages, conversationId]);
+
+  const startNewConversation = () => {
+    if (isTyping) return;
+    setMessages([{ ...WELCOME_MESSAGE, id: Date.now() }]);
+    setConversationId(null);
+    setInputText('');
+  };
+
+  const handleConvertToTicket = async () => {
+    if (isTyping || converting) return;
+    if (!conversationId) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now(),
+          sender: 'bot',
+          text: 'There is no conversation to convert yet — send a message first, then try again.',
+          time: 'Just now',
+        },
+      ]);
+      return;
+    }
+
+    const firstUserMsg = messages.find((m) => m.sender === 'user');
+    const subject = firstUserMsg
+      ? firstUserMsg.text.slice(0, 150)
+      : 'Support request from live chat';
+
+    setConverting(true);
+    try {
+      const res = await fetch('/api/chat/convert', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          conversation_id: conversationId,
+          customer_email: user?.email || 'guest@example.com',
+          subject,
+        }),
+      });
+      if (!res.ok) {
+        const detail = await res.json().catch(() => ({}));
+        throw new Error(detail.detail || `Server responded with status ${res.status}`);
+      }
+      const data = await res.json();
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now(),
+          sender: 'bot',
+          text: `✅ Your conversation has been converted to ticket #TCK-${data.ticket_id}. Our AI analyzed it (priority: ${data.analysis?.priority || '—'}) and a human agent will follow up. You are being taken to the ticket now.`,
+          time: 'Just now',
+        },
+      ]);
+      // Reset the chat session since the conversation is now a ticket
+      setTimeout(() => {
+        setMessages([{ ...WELCOME_MESSAGE, id: Date.now() }]);
+        setConversationId(null);
+        if (onConverted && data.ticket_id) onConverted(data.ticket_id);
+      }, 1800);
+    } catch (err) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now(),
+          sender: 'bot',
+          text: `❌ Could not convert this conversation to a ticket: ${err.message}`,
+          time: 'Just now',
+        },
+      ]);
+    } finally {
+      setConverting(false);
+    }
+  };
+
+  const handleSend = async (textToSend) => {
     const query = textToSend || inputText;
-    if (!query.trim()) return;
+    if (!query.trim() || isTyping) return;
 
-    const newMsg = { id: Date.now(), sender: 'user', text: query, time: 'Just now' };
-    setMessages((prev) => [...prev, newMsg]);
+    const userMsg = { id: Date.now(), sender: 'user', text: query, time: 'Just now' };
+    const history = [...messages, userMsg]
+      .filter((m) => m.sender === 'user' || m.sender === 'bot')
+      .map((m) => ({ role: m.sender === 'user' ? 'user' : 'ai', content: m.text }));
+
+    setMessages((prev) => [...prev, userMsg]);
     if (!textToSend) setInputText('');
     setIsTyping(true);
 
-    setTimeout(() => {
-      let botReply = 'I have received your request. Let me check our knowledge base for you...';
-      const lower = query.toLowerCase();
-
-      if (lower.includes('hours') || lower.includes('support hours')) {
-        botReply = 'Our support team is available 24/7! AI support resolves tickets instantly, while human agents are active Mon-Fri 9AM-6PM EST.';
-      } else if (lower.includes('refund')) {
-        botReply = 'Refund requests require human verification. I have flagged your account for review. Would you like me to open a formal ticket?';
-      } else if (lower.includes('api') || lower.includes('key')) {
-        botReply = 'You can generate your API key under User Profile -> API Tokens. Ensure you keep your bearer secret secure!';
-      } else if (lower.includes('human') || lower.includes('escalate')) {
-        botReply = 'I am transferring this chat session to an active human agent. Estimated wait time: ~2 minutes.';
-      }
-
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: history,
+          customer_email: user?.email || 'guest@example.com',
+          conversation_id: conversationId,
+        }),
+      });
+      if (!res.ok) throw new Error(`Server responded with status ${res.status}`);
+      const data = await res.json();
+      if (data.conversation_id) setConversationId(data.conversation_id);
       setMessages((prev) => [
         ...prev,
-        { id: Date.now() + 1, sender: 'bot', text: botReply, time: 'Just now' },
+        { id: Date.now() + 1, sender: 'bot', text: data.reply, time: 'Just now' },
       ]);
+    } catch (err) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now() + 1,
+          sender: 'bot',
+          text: 'Sorry, I could not reach the support server right now. Please make sure the backend is running on port 8000 and try again.',
+          time: 'Just now',
+        },
+      ]);
+    } finally {
       setIsTyping(false);
-    }, 1000);
+    }
   };
 
   return (
@@ -114,9 +236,23 @@ function ChatPage({ user, onGoTicket, onSelectTicket }) {
               </div>
             </div>
 
-            <button className="btn secondary small-btn" onClick={onGoTicket}>
-              Convert to Ticket
-            </button>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                className="btn ghost small-btn"
+                style={{ border: '1px solid var(--border-color)' }}
+                onClick={startNewConversation}
+                disabled={isTyping}
+              >
+                + New Conversation
+              </button>
+              <button
+                className="btn secondary small-btn"
+                onClick={handleConvertToTicket}
+                disabled={isTyping || converting}
+              >
+                {converting ? 'Converting...' : 'Convert to Ticket'}
+              </button>
+            </div>
           </div>
 
           {/* Messages Feed */}

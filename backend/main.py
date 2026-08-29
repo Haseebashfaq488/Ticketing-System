@@ -4,7 +4,7 @@ import threading
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.models import ChatRequest, TicketCreate, ConvertChatRequest
+from app.models import ChatRequest, TicketCreate, ConvertChatRequest, ProfileUpdate, TicketStatusUpdate
 from app.support_agent import analyze_ticket, chat_reply
 from app import tools
 from app.email_service import send_ticket_confirmation, send_support_response
@@ -13,7 +13,11 @@ app = FastAPI(title="AI Support Demo", version="0.2.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=[
+        "http://localhost:3000",   # old web frontend
+        "http://localhost:8081",   # Expo web dev server
+        "http://127.0.0.1:8081",   # Expo web via 127.0.0.1
+    ],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -137,6 +141,35 @@ def custom_respond(ticket_id: int, response_text: str = ""):
     return {"status": "RESOLVED", "email": email_result}
 
 
+VALID_TICKET_STATUSES = ("OPEN", "IN_PROGRESS", "WAITING_FOR_CUSTOMER", "ESCALATED", "RESOLVED", "CLOSED")
+
+
+@app.put("/api/tickets/{ticket_id}/status")
+def set_ticket_status(ticket_id: int, payload: TicketStatusUpdate):
+    """Manually set the status of a ticket."""
+    status = payload.status.strip().upper()
+    if status not in VALID_TICKET_STATUSES:
+        raise HTTPException(status_code=400, detail=f"Invalid status. Allowed: {', '.join(VALID_TICKET_STATUSES)}")
+    updated = tools.update_ticket(ticket_id, {"status": status})
+    if updated.get("error"):
+        raise HTTPException(status_code=500, detail=updated["error"])
+    if not updated:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+    tools.log_activity(ticket_id, "human", "status_changed", {"new_status": status})
+    return {"status": status}
+
+
+@app.delete("/api/tickets/{ticket_id}")
+def delete_ticket(ticket_id: int):
+    """Permanently delete a ticket and its related rows."""
+    result = tools.delete_ticket(ticket_id)
+    if result.get("error"):
+        raise HTTPException(status_code=500, detail=result["error"])
+    if not result.get("deleted"):
+        raise HTTPException(status_code=404, detail="Ticket not found")
+    return {"deleted": True, "ticket_id": ticket_id}
+
+
 # ------------------------- DASHBOARD -------------------------
 
 @app.get("/api/dashboard")
@@ -171,9 +204,10 @@ def start_chat(customer_email: str = "guest"):
 @app.post("/api/chat")
 def chat(payload: ChatRequest):
     # Find or create conversation
-    conversation_id = None
-    if payload.conversation_id:
-        conversation_id = payload.conversation_id
+    conversation_id = payload.conversation_id
+    if not conversation_id:
+        conv = tools.create_conversation(payload.customer_email or "guest")
+        conversation_id = conv.get("id")
 
     history = [{"role": m.role, "content": m.content} for m in payload.messages]
 
@@ -215,6 +249,38 @@ def convert_chat(payload: ConvertChatRequest):
     result["customer_email"] = payload.customer_email
     result["subject"] = payload.subject
     return result
+
+
+# ------------------------- PROFILE -------------------------
+
+@app.get("/api/profile")
+def get_profile(email: str):
+    """Return the full customers row for an email (auto-creates a default row)."""
+    if not email or not email.strip():
+        raise HTTPException(status_code=400, detail="email is required")
+    profile = tools.get_or_create_customer_profile(email)
+    if not profile or not profile.get("email"):
+        raise HTTPException(status_code=500, detail="Failed to load profile")
+    return profile
+
+
+@app.put("/api/profile")
+def update_profile(payload: ProfileUpdate):
+    """Update the customers table with the profile page fields."""
+    updated = tools.update_customer_profile(
+        payload.email,
+        {
+            "name": payload.name,
+            "plan": payload.plan,
+            "account_status": payload.account_status,
+            "payment_status": payload.payment_status,
+            # Derived automatically from the plan so the customers table stays consistent.
+            "subscription_status": "free_plan" if payload.plan == "free" else "active_premium",
+        },
+    )
+    if updated.get("error"):
+        raise HTTPException(status_code=500, detail=updated["error"])
+    return updated
 
 
 # ------------------------- ACTIVITY LOGS -------------------------

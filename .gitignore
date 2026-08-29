@@ -17,3 +17,7 @@ frontend/frontend.log
 # OS
 .DS_Store
 Thumbs.db
+
+# Runtime artifacts
+frontend/.expo/
+frontend/frontend_start.log

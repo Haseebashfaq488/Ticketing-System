@@ -1,17 +1,62 @@
 import { useState } from 'react';
 
-function TicketPage({ user, onGoChat }) {
+function TicketPage({ user, onGoChat, onTicketCreated }) {
   const [subject, setSubject] = useState('');
   const [category, setCategory] = useState('TECHNICAL');
-  const [priority, setPriority] = useState('MEDIUM');
   const [description, setDescription] = useState('');
   const [email, setEmail] = useState(user?.email || '');
   const [attachedFile, setAttachedFile] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState(null);
+  const [result, setResult] = useState(null); // backend response with AI analysis
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setSubmitted(true);
+    setSubmitting(true);
+    setError(null);
+    try {
+      const customerName =
+        user?.user_metadata?.name ||
+        user?.name ||
+        email.split('@')[0].replace(/[._-]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+
+      const res = await fetch('/api/tickets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customer_name: customerName,
+          customer_email: email,
+          subject,
+          message: description,
+        }),
+      });
+      if (!res.ok) {
+        const detail = await res.json().catch(() => ({}));
+        throw new Error(detail.detail || `Server responded with status ${res.status}`);
+      }
+      const data = await res.json();
+      setResult(data);
+      setSubmitted(true);
+      if (onTicketCreated) onTicketCreated(); // tell the app to refresh dashboard data
+    } catch (err) {
+      setError(
+        err.message === 'Failed to fetch'
+          ? 'Could not reach the backend server. Is it running on port 8000?'
+          : err.message
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const resetForm = () => {
+    setSubmitted(false);
+    setResult(null);
+    setSubject('');
+    setCategory('TECHNICAL');
+    setDescription('');
+    setAttachedFile(null);
   };
 
   return (
@@ -34,16 +79,48 @@ function TicketPage({ user, onGoChat }) {
             </svg>
           </div>
           <h2 style={{ fontSize: '24px', fontWeight: '800', margin: '0 0 10px' }}>
-            Ticket Submitted & AI Logged!
+            Ticket Submitted &amp; AI Logged!
           </h2>
-          <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>
-            Ticket Reference ID <strong style={{ color: 'var(--accent-purple)' }}>#TCK-8905</strong> has been stored in <code>support_tickets</code> database table.
-            An automated AI analysis has been triggered.
+          <p style={{ color: 'var(--text-secondary)', marginBottom: '12px' }}>
+            Ticket Reference ID <strong style={{ color: 'var(--accent-purple)' }}>#TCK-{result?.ticket_id || '—'}</strong> has been stored in the <code>support_tickets</code> database table.
           </p>
-          <div style={{ display: 'flex', justifyContent: 'center', gap: '12px' }}>
-            <button className="btn primary" onClick={() => setSubmitted(false)}>
+          {result?.analysis && (
+            <div
+              style={{
+                textAlign: 'left',
+                background: 'var(--bg-input)',
+                borderRadius: '10px',
+                padding: '16px 20px',
+                margin: '0 auto 24px',
+                maxWidth: '560px',
+                fontSize: '13px',
+                lineHeight: 1.7,
+              }}
+            >
+              <div style={{ fontWeight: '800', marginBottom: '6px', color: 'var(--accent-purple)' }}>
+                AI Analysis ({result.analysis.model_used || 'AI engine'})
+              </div>
+              <div><strong>Priority:</strong> {result.analysis.priority}</div>
+              <div><strong>Category:</strong> {result.analysis.category}</div>
+              <div><strong>Intent:</strong> {result.analysis.intent} (confidence {(result.analysis.confidence * 100).toFixed(0)}%)</div>
+              <div><strong>Reasoning:</strong> {result.analysis.reasoning_summary}</div>
+              <div><strong>Recommended action:</strong> {result.analysis.recommended_action}</div>
+            </div>
+          )}
+          {result?.email_sent?.error ? (
+            <p style={{ color: 'var(--accent-amber)', marginBottom: '24px', fontSize: '13px' }}>
+              Note: the confirmation email could not be sent ({String(result.email_sent.error).slice(0, 120)}).
+            </p>
+          ) : null}
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', flexWrap: 'wrap' }}>
+            <button className="btn primary" onClick={resetForm}>
               Submit Another Ticket
             </button>
+            {onTicketCreated && (
+              <button className="btn secondary" onClick={() => onTicketCreated(result?.ticket_id)}>
+                View Dashboard
+              </button>
+            )}
             <button className="btn secondary" onClick={onGoChat}>
               Talk to Live AI Assistant
             </button>
@@ -64,38 +141,22 @@ function TicketPage({ user, onGoChat }) {
               />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-              <div className="form-group">
-                <label className="form-label">Category (schema.sql)</label>
-                <select
-                  className="input-field"
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                >
-                  <option value="TECHNICAL">TECHNICAL</option>
-                  <option value="BILLING">BILLING</option>
-                  <option value="ACCOUNT">ACCOUNT</option>
-                  <option value="REFUND">REFUND</option>
-                  <option value="SECURITY">SECURITY</option>
-                  <option value="FEATURE_REQUEST">FEATURE REQUEST</option>
-                  <option value="GENERAL">GENERAL</option>
-                  <option value="OTHER">OTHER</option>
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Priority Level (schema.sql)</label>
-                <select
-                  className="input-field"
-                  value={priority}
-                  onChange={(e) => setPriority(e.target.value)}
-                >
-                  <option value="LOW">LOW</option>
-                  <option value="MEDIUM">MEDIUM</option>
-                  <option value="HIGH">HIGH</option>
-                  <option value="CRITICAL">CRITICAL</option>
-                </select>
-              </div>
+            <div className="form-group">
+              <label className="form-label">Category</label>
+              <select
+                className="input-field"
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+              >
+                <option value="TECHNICAL">TECHNICAL</option>
+                <option value="BILLING">BILLING</option>
+                <option value="ACCOUNT">ACCOUNT</option>
+                <option value="REFUND">REFUND</option>
+                <option value="SECURITY">SECURITY</option>
+                <option value="FEATURE_REQUEST">FEATURE REQUEST</option>
+                <option value="GENERAL">GENERAL</option>
+                <option value="OTHER">OTHER</option>
+              </select>
             </div>
 
             <div className="form-group">
@@ -139,9 +200,13 @@ function TicketPage({ user, onGoChat }) {
               </label>
             </div>
 
-            <button type="submit" className="btn primary" style={{ width: '100%', padding: '14px' }}>
-              Submit Ticket & Trigger AI Analysis
+            <button type="submit" className="btn primary" style={{ width: '100%', padding: '14px' }} disabled={submitting}>
+              {submitting ? 'Analyzing with AI... (this can take up to a minute)' : 'Submit Ticket & Trigger AI Analysis'}
             </button>
+
+            {error && (
+              <p style={{ color: 'var(--accent-rose)', margin: 0, fontSize: '13px', textAlign: 'center' }}>{error}</p>
+            )}
           </form>
         </div>
       )}

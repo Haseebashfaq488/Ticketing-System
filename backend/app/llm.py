@@ -25,7 +25,9 @@ class LLMError(Exception):
 
 
 def _is_configured() -> bool:
-    return bool(GEMINI_API_KEY) and GEMINI_API_KEY.startswith("AIzaSy")
+    return bool(GEMINI_API_KEY) and (
+        GEMINI_API_KEY.startswith("AIzaSy") or GEMINI_API_KEY.startswith("AQ.")
+    )
 
 
 def post_payload(payload: dict) -> dict:
@@ -40,7 +42,7 @@ def post_payload(payload: dict) -> dict:
             API_URL,
             params={"key": GEMINI_API_KEY},
             json=payload,
-            timeout=5,
+            timeout=60,
         )
     except requests.RequestException as exc:
         raise LLMError(f"Could not reach Gemini API: {exc}") from exc

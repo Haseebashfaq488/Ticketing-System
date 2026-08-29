@@ -16,9 +16,15 @@ const DEFAULT_AVATAR =
   'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80';
 
 function App() {
-  const [view, setView] = useState('home');
-  const [selectedTicket, setSelectedTicket] = useState(null);
+  const [view, setView] = useState(
+    () => sessionStorage.getItem('appView') || 'home'
+  );
+  const [selectedTicket, setSelectedTicket] = useState(() => {
+    const stored = sessionStorage.getItem('selectedTicket');
+    return stored ? Number(stored) : null;
+  });
   const [user, setUser] = useState(null);
+  const [authReady, setAuthReady] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showAboutModal, setShowAboutModal] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
@@ -38,6 +44,16 @@ function App() {
     setMobileMenuOpen(false);
   }, [view]);
 
+  // Restore the current page (and open ticket) after a browser reload
+  useEffect(() => {
+    sessionStorage.setItem('appView', view);
+    if (selectedTicket != null) {
+      sessionStorage.setItem('selectedTicket', String(selectedTicket));
+    } else {
+      sessionStorage.removeItem('selectedTicket');
+    }
+  }, [view, selectedTicket]);
+
   useEffect(() => {
     document.body.setAttribute('data-theme', theme);
     localStorage.setItem('theme', theme);
@@ -46,6 +62,7 @@ function App() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
+      setAuthReady(true);
     });
 
     const {
@@ -79,6 +96,10 @@ function App() {
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     setUser(null);
+    sessionStorage.removeItem('appView');
+    sessionStorage.removeItem('selectedTicket');
+    setView('home');
+    setSelectedTicket(null);
   };
 
   const openTicket = (id) => {
@@ -87,9 +108,48 @@ function App() {
   };
 
   const handleNavClick = (targetView) => {
+    // Profile is only accessible when signed in — open the auth modal instead.
+    if (targetView === 'profile' && !user) {
+      setShowAuthModal(true);
+      setMobileMenuOpen(false);
+      return;
+    }
     setView(targetView);
     setMobileMenuOpen(false);
   };
+
+  // Keep the plan badge in sync when the customer saves profile changes.
+  const handleProfileSaved = (customer) => {
+    if (!customer || !customer.plan) return;
+    const badge =
+      customer.plan === 'premium'
+        ? 'Premium Plan Member'
+        : customer.plan === 'gold'
+        ? 'Gold Plan Member'
+        : 'Free Plan Member';
+    setUserPlanBadge(badge);
+    localStorage.setItem('userPlanBadge', badge);
+  };
+
+  // Wait for the Supabase session to restore before rendering, so a reload
+  // on a protected page (e.g. Profile) doesn't briefly show "Sign in Required".
+  if (!authReady) {
+    return (
+      <div
+        className="app"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '100vh',
+        }}
+      >
+        <p style={{ color: 'var(--text-secondary)', fontSize: '15px' }}>
+          Loading NovaWare Support…
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="app">
@@ -276,21 +336,43 @@ function App() {
       <main>
         {view === 'home' && <Home onSelect={handleNavClick} onOpenUpgrade={openUpgradeModal} />}
         {view === 'dashboard' && <Dashboard user={user} onSelectTicket={openTicket} />}
-        {view === 'ticket' && <TicketPage user={user} onGoChat={() => handleNavClick('chat')} />}
+        {view === 'ticket' && (
+          <TicketPage
+            user={user}
+            onGoChat={() => handleNavClick('chat')}
+            onTicketCreated={() => handleNavClick('dashboard')}
+          />
+        )}
         {view === 'chat' && (
           <ChatPage
             user={user}
             onGoTicket={() => handleNavClick('ticket')}
             onSelectTicket={openTicket}
+            onConverted={openTicket}
           />
         )}
         {view === 'profile' && (
-          <ProfilePage
-            user={user}
-            planBadge={userPlanBadge}
-            currentAvatar={avatarUrl}
-            onUpdateAvatar={handleUpdateAvatar}
-          />
+          user ? (
+            <ProfilePage
+              user={user}
+              planBadge={userPlanBadge}
+              currentAvatar={avatarUrl}
+              onUpdateAvatar={handleUpdateAvatar}
+              onProfileSaved={handleProfileSaved}
+            />
+          ) : (
+            <div className="animate-fade-in" style={{ textAlign: 'center', padding: '80px 20px' }}>
+              <h1 style={{ fontSize: '32px', fontWeight: '800', margin: '0 0 10px' }}>
+                Sign in <span className="grad-text">Required</span>
+              </h1>
+              <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>
+                You must be signed in to view and manage your profile settings.
+              </p>
+              <button className="btn primary" onClick={() => setShowAuthModal(true)}>
+                Sign In to Continue
+              </button>
+            </div>
+          )
         )}
         {view === 'detail' && selectedTicket && (
           <TicketDetail ticketId={selectedTicket} onBack={() => handleNavClick('dashboard')} />

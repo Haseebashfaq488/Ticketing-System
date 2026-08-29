@@ -28,6 +28,20 @@ class ConvertChatRequest(BaseModel):
     subject: str
 
 
+class TicketStatusUpdate(BaseModel):
+    status: str = Field(min_length=1, max_length=30)
+
+
+class ProfileUpdate(BaseModel):
+    """Editable fields on the customers table for the profile page."""
+
+    email: EmailStr
+    name: str = Field(min_length=1, max_length=100)
+    plan: str = Field(default="free", pattern="^(free|gold|premium)$")
+    account_status: str = Field(default="active", pattern="^(active|restricted)$")
+    payment_status: str = Field(default="none", pattern="^(none|completed|failed)$")
+
+
 class TicketAnalysis(BaseModel):
     intent: str
     category: str
