@@ -23,8 +23,16 @@ ALWAYS_REVIEW_CATEGORIES = {"REFUND", "SECURITY"}
 CONFIDENCE_THRESHOLD = 0.6
 
 
-def apply_policy(analysis: dict) -> dict:
-    """Enforce business rules on top of the AI recommendation."""
+def apply_policy(analysis: dict, knowledge_found: bool = False) -> dict:
+    """Enforce business rules on top of the AI recommendation.
+
+    Args:
+        analysis: the AI's structured recommendation.
+        knowledge_found: whether the agent actually retrieved any company
+            policy to back an automatic reply. The AI may ONLY auto-answer
+            when it can cite a policy; otherwise we force human review
+            (zero-hallucination guardrail).
+    """
     reasons = []
 
     if analysis.get("category") in ALWAYS_REVIEW_CATEGORIES:
@@ -41,6 +49,17 @@ def apply_policy(analysis: dict) -> dict:
             )
     if analysis.get("recommended_action") in ("HUMAN_REVIEW", "ESCALATE"):
         reasons.append(f"AI itself recommended {analysis['recommended_action']}")
+
+    # Zero-hallucination guardrail: an automatic reply must be backed by a
+    # retrieved company policy. Without one, a human verifies the answer.
+    if (
+        not knowledge_found
+        and analysis.get("recommended_action") == "AUTOMATIC_RESPONSE"
+    ):
+        reasons.append(
+            "No company policy found to support an automatic reply — "
+            "human verification required"
+        )
 
     decision = "HUMAN_REVIEW" if reasons else "AUTO_RESPONSE"
     return {

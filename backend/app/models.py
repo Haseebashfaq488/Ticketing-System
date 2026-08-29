@@ -28,6 +28,26 @@ class ConvertChatRequest(BaseModel):
     subject: str
 
 
+class PolicyCreate(BaseModel):
+    """New company policy / knowledge-base document."""
+    slug: Optional[str] = None
+    category: str = Field(default="GENERAL", max_length=40)
+    title: str = Field(min_length=1, max_length=200)
+    content: str = Field(min_length=1, max_length=10000)
+    tags: list[str] = []
+    is_active: bool = True
+
+
+class PolicyUpdate(BaseModel):
+    """Partial update of a company policy."""
+    slug: Optional[str] = Field(default=None, max_length=200)
+    category: Optional[str] = Field(default=None, max_length=40)
+    title: Optional[str] = Field(default=None, min_length=1, max_length=200)
+    content: Optional[str] = Field(default=None, min_length=1, max_length=10000)
+    tags: Optional[list[str]] = None
+    is_active: Optional[bool] = None
+
+
 class TicketStatusUpdate(BaseModel):
     status: str = Field(min_length=1, max_length=30)
 

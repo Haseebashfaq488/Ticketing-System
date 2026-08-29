@@ -292,5 +292,30 @@ AS $$
 $$;
 
 -- ============================================================
--- DONE. 7 tables, 6 functions, ready for the backend.
+-- 8. COMPANY POLICIES (DB-backed knowledge base)
+-- ============================================================
+-- Replaces the hardcoded Python list in app/knowledge.py as the agent's
+-- source of truth. Full migration + FTS function + seed live in
+-- backend/company_policies.sql (run both files in order).
+
+CREATE TABLE IF NOT EXISTS company_policies (
+    id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    slug        TEXT UNIQUE NOT NULL,
+    category    TEXT NOT NULL DEFAULT 'GENERAL',
+    title       TEXT NOT NULL,
+    content     TEXT NOT NULL,
+    tags        TEXT[] DEFAULT '{}',
+    is_active   BOOLEAN DEFAULT TRUE,
+    created_at  TIMESTAMPTZ DEFAULT now(),
+    updated_at  TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_policies_active   ON company_policies(is_active);
+CREATE INDEX IF NOT EXISTS idx_policies_category ON company_policies(category);
+CREATE INDEX IF NOT EXISTS idx_policies_slug     ON company_policies(slug);
+CREATE INDEX IF NOT EXISTS idx_policies_fts      ON company_policies
+USING gin(to_tsvector('english', title || ' ' || content || ' ' || coalesce(array_to_string(tags, ' '), '')));
+
+-- ============================================================
+-- DONE. 8 tables, 7 functions, ready for the backend.
 -- ============================================================

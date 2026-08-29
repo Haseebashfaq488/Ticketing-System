@@ -4,9 +4,9 @@ import threading
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.models import ChatRequest, TicketCreate, ConvertChatRequest, ProfileUpdate, TicketStatusUpdate
+from app.models import ChatRequest, TicketCreate, ConvertChatRequest, ProfileUpdate, TicketStatusUpdate, PolicyCreate, PolicyUpdate
 from app.support_agent import analyze_ticket, chat_reply
-from app import tools
+from app import tools, policy_repository
 from app.email_service import send_ticket_confirmation, send_support_response
 
 app = FastAPI(title="AI Support Demo", version="0.2.0")
@@ -281,6 +281,62 @@ def update_profile(payload: ProfileUpdate):
     if updated.get("error"):
         raise HTTPException(status_code=500, detail=updated["error"])
     return updated
+
+
+# ------------------------- COMPANY POLICIES -------------------------
+
+@app.get("/api/policies")
+def list_policies(active: bool = None, category: str = None):
+    """List company policies. active/true filters archives; category filters."""
+    return policy_repository.list_policies(active_only=active, category=category)
+
+
+@app.get("/api/policies/search")
+def search_policies_endpoint(q: str, top_k: int = 3):
+    """Full-text search over active policies (agent-facing)."""
+    if not q or not q.strip():
+        raise HTTPException(status_code=400, detail="q is required")
+    return policy_repository.search_policies(q, top_k=max(1, min(top_k, 10)))
+
+
+@app.get("/api/policies/{policy_id}")
+def get_policy(policy_id):
+    """Get a single policy by numeric id or slug."""
+    policy = policy_repository.get_policy(policy_id)
+    if not policy:
+        raise HTTPException(status_code=404, detail="Policy not found")
+    return policy
+
+
+@app.post("/api/policies", status_code=201)
+def create_policy(payload: PolicyCreate):
+    result = policy_repository.create_policy(payload.model_dump())
+    if result.get("error"):
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@app.patch("/api/policies/{policy_id}")
+def update_policy(policy_id, payload: PolicyUpdate):
+    result = policy_repository.update_policy(policy_id, payload.model_dump(exclude_unset=True))
+    if result.get("error"):
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@app.delete("/api/policies/{policy_id}")
+def archive_policy(policy_id):
+    """Archive (soft-delete) a policy so it stops being retrieved."""
+    result = policy_repository.set_policy_active(policy_id, False)
+    if result.get("error"):
+        raise HTTPException(status_code=400, detail=result["error"])
+    return {"archived": True, "policy": result}
+
+
+@app.post("/api/policies/seed")
+def seed_policies():
+    """Idempotently seed DB from the bundled local defaults."""
+    return policy_repository.seed_defaults()
 
 
 # ------------------------- ACTIVITY LOGS -------------------------
