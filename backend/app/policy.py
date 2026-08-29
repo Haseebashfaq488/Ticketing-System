@@ -55,8 +55,6 @@ def apply_policy(analysis: dict, knowledge_found: bool = False) -> dict:
     if (
         not knowledge_found
         and analysis.get("recommended_action") == "AUTOMATIC_RESPONSE"
-        and analysis.get("category")
-        in ("ACCOUNT", "BILLING", "TECHNICAL", "FEATURE_REQUEST", "GENERAL")
     ):
         reasons.append(
             "No company policy found to support an automatic reply — "

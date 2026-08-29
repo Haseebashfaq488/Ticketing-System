@@ -9,6 +9,8 @@ This is the ONLY place that knows how to retrieve company policies:
 Every result is tagged with a `source` field ("database" | "fallback")
 so the agent trace shows exactly where the facts came from.
 """
+import re
+
 from . import knowledge
 
 # Category → what the policy rules, used by the guardrail / routing.
@@ -104,22 +106,19 @@ def list_policies(active_only: bool = True, category: str = None) -> list:
 
 def get_policy(policy_id) -> dict:
     """Fetch a single policy by id (or slug). Falls back to local defaults."""
+    is_numeric = str(policy_id).isdigit()
     try:
-        res = _sb().table("company_policies").select("*").eq("id", policy_id).execute()
-        if res.data:
-            return _map_row(res.data[0])
-    except Exception:
-        pass
-
-    try:
-        res = _sb().table("company_policies").select("*").eq("slug", str(policy_id)).execute()
+        if is_numeric:
+            res = _sb().table("company_policies").select("*").eq("id", int(policy_id)).execute()
+        else:
+            res = _sb().table("company_policies").select("*").eq("slug", str(policy_id)).execute()
         if res.data:
             return _map_row(res.data[0])
     except Exception:
         pass
 
     for d in _local_defaults():
-        if d["slug"] == str(policy_id):
+        if (is_numeric and str(d["id"]) == str(policy_id)) or d["slug"] == str(policy_id):
             return d
     return {}
 
@@ -169,8 +168,6 @@ def create_policy(data: dict) -> dict:
         "is_active": bool(data.get("is_active", True)),
     }
     if not row["slug"]:
-        import re
-
         row["slug"] = re.sub(r"[^a-z0-9]+", "_", row["title"].lower()).strip("_")
     if not row["title"] or not row["content"]:
         return {"error": "title and content are required"}
@@ -197,12 +194,12 @@ def update_policy(policy_id, data: dict) -> dict:
     if not payload:
         return {"error": "no valid fields to update"}
 
+    is_numeric = str(policy_id).isdigit()
     try:
-        res = _sb().table("company_policies").update(payload).eq("id", policy_id).execute()
-        if res.data:
-            return _map_row(res.data[0])
-        # Try slug match
-        res = _sb().table("company_policies").update(payload).eq("slug", str(policy_id)).execute()
+        if is_numeric:
+            res = _sb().table("company_policies").update(payload).eq("id", int(policy_id)).execute()
+        else:
+            res = _sb().table("company_policies").update(payload).eq("slug", str(policy_id)).execute()
         if res.data:
             return _map_row(res.data[0])
         return {"error": "policy not found"}
@@ -220,8 +217,20 @@ def seed_defaults() -> dict:
 
     Idempotent: editing an existing slug afterwards is never overwritten.
     """
-    seeded, updated, errors = 0, 0, []
+    seeded, existing_count, errors = 0, 0, []
+    existing_slugs = set()
+    try:
+        res = _sb().table("company_policies").select("slug").execute()
+        if res.data:
+            existing_slugs = {r["slug"] for r in res.data if "slug" in r}
+    except Exception as e:
+        errors.append(f"Failed to fetch existing slugs: {e}")
+
     for d in _local_defaults():
+        if d["slug"] in existing_slugs:
+            existing_count += 1
+            continue
+
         row = {
             "slug": d["slug"],
             "category": d["category"],
@@ -231,15 +240,9 @@ def seed_defaults() -> dict:
             "is_active": True,
         }
         try:
-            existing = (
-                _sb().table("company_policies").select("id").eq("slug", d["slug"]).execute()
-            )
-            if existing.data:
-                updated += 1
-                continue
             _sb().table("company_policies").insert(row).execute()
             seeded += 1
         except Exception as e:
             errors.append(f"{d['slug']}: {e}")
 
-    return {"seeded": seeded, "existing_updated": updated, "errors": errors}
+    return {"seeded": seeded, "existing_count": existing_count, "errors": errors}

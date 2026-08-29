@@ -66,6 +66,17 @@ class TestZeroHallucinationGuardrail(unittest.TestCase):
         verdict = apply_policy(analysis, knowledge_found=True)
         self.assertEqual(verdict["decision"], "AUTO_RESPONSE")
 
+    def test_auto_reply_other_category_without_knowledge_forces_review(self):
+        analysis = {
+            "category": "OTHER",
+            "priority": "LOW",
+            "confidence": 0.85,
+            "recommended_action": "AUTOMATIC_RESPONSE",
+        }
+        verdict = apply_policy(analysis, knowledge_found=False)
+        self.assertEqual(verdict["decision"], "HUMAN_REVIEW")
+        self.assertTrue(any("No company policy" in r for r in verdict["policy_reasons"]))
+
     def test_security_always_reviewed_even_with_knowledge(self):
         analysis = {
             "category": "SECURITY",

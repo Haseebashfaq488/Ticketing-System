@@ -32,6 +32,8 @@ CREATE TABLE IF NOT EXISTS company_policies (
 CREATE INDEX IF NOT EXISTS idx_policies_active   ON company_policies(is_active);
 CREATE INDEX IF NOT EXISTS idx_policies_category ON company_policies(category);
 CREATE INDEX IF NOT EXISTS idx_policies_slug     ON company_policies(slug);
+CREATE INDEX IF NOT EXISTS idx_policies_fts      ON company_policies
+USING gin(to_tsvector('english', title || ' ' || content || ' ' || coalesce(array_to_string(tags, ' '), '')));
 
 -- =====================
 -- 2. FULL-TEXT SEARCH
