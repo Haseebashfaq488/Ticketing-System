@@ -308,9 +308,13 @@ def analyze_ticket(ticket_id: int, name: str, email: str, subject: str, message:
                        {k: analysis[k] for k in ("category", "priority", "confidence")}))
 
     # 4) Backend policy enforcement (the real authority)
-    verdict = policy.apply_policy(analysis)
-    steps.append(_step("policy_engine", {"ai_recommendation": analysis["recommended_action"]},
-                       verdict))
+    # knowledge_found = whether any company policy backed the answer.
+    # An automatic reply without a policy citation is forced to human review.
+    verdict = policy.apply_policy(analysis, knowledge_found=bool(doc_ids))
+    steps.append(_step("policy_engine", {
+        "ai_recommendation": analysis["recommended_action"],
+        "knowledge_found": bool(doc_ids),
+    }, verdict))
 
     # 5) Persist to Supabase
     tools.update_ticket(ticket_id, {

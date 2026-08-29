@@ -5,7 +5,7 @@ It can only call these narrow functions, and each function returns
 only the minimum fields needed for support. Passwords, tokens and
 secrets are never returned by any tool here.
 """
-from . import knowledge
+from . import knowledge, policy_repository
 from app.supabase_client import get_admin_client
 
 
@@ -108,10 +108,21 @@ def update_customer_profile(email: str, fields: dict) -> dict:
 
 
 def search_knowledge(query: str) -> list:
-    """Search the company knowledge base (lives in Python, not DB)."""
-    docs = knowledge.search_knowledge(query)
+    """Search the company knowledge base.
+
+    DB-backed now: queries the `company_policies` table (full-text search)
+    and transparently falls back to the bundled Python defaults if the
+    database is unreachable. Each doc carries a `source` marker.
+    """
+    docs = policy_repository.search_policies(query)
     return [
-        {"id": d["id"], "title": d["title"], "content": d["content"]} for d in docs
+        {
+            "id": d["id"],
+            "title": d["title"],
+            "content": d["content"],
+            "source": d.get("source", "database"),
+        }
+        for d in docs
     ]
 
 
