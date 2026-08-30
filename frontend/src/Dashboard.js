@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import API_BASE from './api';
 
 function Dashboard({ user, onSelectTicket }) {
   const [tickets, setTickets] = useState([]);
@@ -12,12 +13,12 @@ function Dashboard({ user, onSelectTicket }) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/tickets');
+      const res = await fetch(`${API_BASE}/api/tickets`);
       if (!res.ok) throw new Error(`Server responded with status ${res.status}`);
       const data = await res.json();
       setTickets(Array.isArray(data) ? data : []);
     } catch (err) {
-      setError('Could not load tickets from the server. Is the backend running on port 8000?');
+      setError('Could not load tickets from the server. Is the backend running?');
     } finally {
       setLoading(false);
     }
@@ -42,7 +43,7 @@ function Dashboard({ user, onSelectTicket }) {
     if (!window.confirm(`Permanently delete ticket TCK-${ticketId}? This cannot be undone.`)) return;
     setDeletingId(ticketId);
     try {
-      const res = await fetch(`/api/tickets/${ticketId}`, { method: 'DELETE' });
+      const res = await fetch(`${API_BASE}/api/tickets/${ticketId}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Delete failed');
       setTickets((prev) => prev.filter((t) => t.ticket_id !== ticketId));
     } catch (err) {

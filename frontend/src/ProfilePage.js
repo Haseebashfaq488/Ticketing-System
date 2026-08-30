@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import API_BASE from './api';
 
 const PRESET_AVATARS = [
   'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
@@ -35,6 +36,14 @@ function ProfilePage({ user, planBadge, currentAvatar, onUpdateAvatar, onProfile
   const [accountStatus, setAccountStatus] = useState('active');
   const [paymentStatus, setPaymentStatus] = useState('none');
 
+  // Change-password fields (POSTed to the backend, which updates Supabase Auth).
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordBusy, setPasswordBusy] = useState(false);
+  const [passwordMsg, setPasswordMsg] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+
   // Local-only preferences (not stored in the customers table).
   const [twoFactor, setTwoFactor] = useState(
     localStorage.getItem('prefTwoFactor') === 'true'
@@ -56,7 +65,7 @@ function ProfilePage({ user, planBadge, currentAvatar, onUpdateAvatar, onProfile
         return;
       }
       try {
-        const res = await fetch(`/api/profile?email=${encodeURIComponent(email)}`);
+        const res = await fetch(`${API_BASE}/api/profile?email=${encodeURIComponent(email)}`);
         if (!res.ok) throw new Error(`Server responded with status ${res.status}`);
         const data = await res.json();
         if (cancelled) return;
@@ -99,7 +108,7 @@ function ProfilePage({ user, planBadge, currentAvatar, onUpdateAvatar, onProfile
     setSavedMessage(false);
     setSaving(true);
     try {
-      const res = await fetch('/api/profile', {
+      const res = await fetch(`${API_BASE}/api/profile`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -108,6 +117,7 @@ function ProfilePage({ user, planBadge, currentAvatar, onUpdateAvatar, onProfile
           plan,
           account_status: accountStatus,
           payment_status: paymentStatus,
+          subscription_status: plan === 'free' ? 'free_plan' : 'active_premium',
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -126,6 +136,47 @@ function ProfilePage({ user, planBadge, currentAvatar, onUpdateAvatar, onProfile
       setErrorMsg(err.message || 'Failed to save your profile. Please try again.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    setPasswordError('');
+    setPasswordMsg('');
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setPasswordError('Please fill in all password fields.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError('New password and confirmation do not match.');
+      return;
+    }
+    if (newPassword.length < 6) {
+      setPasswordError('New password must be at least 6 characters.');
+      return;
+    }
+    setPasswordBusy(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/change-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          current_password: currentPassword,
+          new_password: newPassword,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.detail || `Server responded with status ${res.status}`);
+
+      setPasswordMsg('Password updated successfully.');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err) {
+      setPasswordError(err.message || 'Failed to change password. Please try again.');
+    } finally {
+      setPasswordBusy(false);
     }
   };
 
@@ -373,6 +424,98 @@ function ProfilePage({ user, planBadge, currentAvatar, onUpdateAvatar, onProfile
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '12px' }}>
               <button type="submit" className="btn primary" disabled={saving}>
                 {saving ? 'Saving…' : 'Save Profile Changes'}
+              </button>
+            </div>
+          </form>
+
+          <hr style={{ borderColor: 'var(--border-color)', margin: '24px 0' }} />
+
+          <h3 style={{ fontSize: '18px', fontWeight: '800', margin: '0 0 4px' }}>
+            Change Password
+          </h3>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '13px', margin: '0 0 16px' }}>
+            Update the password used to sign in to your NovaWare account.
+          </p>
+
+          {passwordMsg && (
+            <div
+              style={{
+                background: 'rgba(16, 185, 129, 0.15)',
+                border: '1px solid var(--accent-emerald)',
+                color: 'var(--accent-emerald)',
+                padding: '10px 16px',
+                borderRadius: '12px',
+                marginBottom: '16px',
+                fontWeight: '600',
+              }}
+            >
+              {passwordMsg}
+            </div>
+          )}
+
+          {passwordError && (
+            <div
+              style={{
+                background: 'rgba(239, 68, 68, 0.15)',
+                border: '1px solid #ef4444',
+                color: '#ef4444',
+                padding: '10px 16px',
+                borderRadius: '12px',
+                marginBottom: '16px',
+                fontWeight: '600',
+              }}
+            >
+              {passwordError}
+            </div>
+          )}
+
+          <form
+            onSubmit={handleChangePassword}
+            style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}
+          >
+            <div className="form-group">
+              <label className="form-label">Current Password</label>
+              <input
+                type="password"
+                className="input-field"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                placeholder="Enter your current password"
+                autoComplete="current-password"
+                required
+              />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+              <div className="form-group">
+                <label className="form-label">New Password</label>
+                <input
+                  type="password"
+                  className="input-field"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="At least 6 characters"
+                  autoComplete="new-password"
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Confirm New Password</label>
+                <input
+                  type="password"
+                  className="input-field"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Repeat the new password"
+                  autoComplete="new-password"
+                  required
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button type="submit" className="btn secondary" disabled={passwordBusy}>
+                {passwordBusy ? 'Updating…' : 'Update Password'}
               </button>
             </div>
           </form>

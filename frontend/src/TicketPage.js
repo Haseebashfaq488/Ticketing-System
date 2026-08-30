@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import API_BASE from './api';
 
 function TicketPage({ user, onGoChat, onTicketCreated }) {
   const [subject, setSubject] = useState('');
@@ -21,7 +22,7 @@ function TicketPage({ user, onGoChat, onTicketCreated }) {
         user?.name ||
         email.split('@')[0].replace(/[._-]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 
-      const res = await fetch('/api/tickets', {
+      const res = await fetch(`${API_BASE}/api/tickets`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -42,7 +43,7 @@ function TicketPage({ user, onGoChat, onTicketCreated }) {
     } catch (err) {
       setError(
         err.message === 'Failed to fetch'
-          ? 'Could not reach the backend server. Is it running on port 8000?'
+          ? 'Could not reach the backend server. Is it running?'
           : err.message
       );
     } finally {

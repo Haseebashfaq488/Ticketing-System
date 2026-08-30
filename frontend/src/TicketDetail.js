@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import API_BASE from './api';
 
 function TicketDetail({ ticketId, onBack }) {
   const [data, setData] = useState(null); // { ticket, customer, analysis }
@@ -12,12 +13,12 @@ function TicketDetail({ ticketId, onBack }) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/tickets/${ticketId}`);
+      const res = await fetch(`${API_BASE}/api/tickets/${ticketId}`);
       if (res.status === 404) throw new Error(`Ticket #${ticketId} was not found in the database.`);
       if (!res.ok) throw new Error(`Server responded with status ${res.status}`);
       setData(await res.json());
 
-      const logRes = await fetch(`/api/tickets/${ticketId}/activity`);
+      const logRes = await fetch(`${API_BASE}/api/tickets/${ticketId}/activity`);
       if (logRes.ok) {
         const logs = await logRes.json();
         setActivityLogs(Array.isArray(logs) ? logs : []);
@@ -25,7 +26,7 @@ function TicketDetail({ ticketId, onBack }) {
     } catch (err) {
       setError(
         err.message === 'Failed to fetch'
-          ? 'Could not reach the backend server. Is it running on port 8000?'
+          ? 'Could not reach the backend server. Is it running?'
           : err.message
       );
     } finally {
@@ -41,7 +42,7 @@ function TicketDetail({ ticketId, onBack }) {
   const runAction = async (action, body, method = 'POST') => {
     setActionBusy(true);
     try {
-      const res = await fetch(`/api/tickets/${ticketId}/${action}`, {
+      const res = await fetch(`${API_BASE}/api/tickets/${ticketId}/${action}`, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -67,7 +68,7 @@ function TicketDetail({ ticketId, onBack }) {
     if (!window.confirm(`Permanently delete ticket #${ticketId}? This cannot be undone.`)) return;
     setActionBusy(true);
     try {
-      const res = await fetch(`/api/tickets/${ticketId}`, { method: 'DELETE' });
+      const res = await fetch(`${API_BASE}/api/tickets/${ticketId}`, { method: 'DELETE' });
       if (!res.ok) {
         const detail = await res.json().catch(() => ({}));
         throw new Error(detail.detail || `Server responded with status ${res.status}`);

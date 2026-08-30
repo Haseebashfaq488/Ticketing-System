@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import API_BASE from './api';
 
 const SUGGESTED_PROMPTS = [
   'What are your support hours?',
@@ -63,7 +64,27 @@ function ChatPage({ user, onGoTicket, onSelectTicket, onConverted }) {
 
   const handleConvertToTicket = async () => {
     if (isTyping || converting) return;
-    if (!conversationId) {
+
+    // If there is no active conversation yet, start one so we have an id to convert.
+    let convId = conversationId;
+    if (!convId) {
+      try {
+        const startRes = await fetch(
+          `${API_BASE}/api/chat/start?customer_email=${encodeURIComponent(user?.email || 'guest@example.com')}`
+        );
+        if (startRes.ok) {
+          const startData = await startRes.json();
+          if (startData.conversation_id) {
+            convId = startData.conversation_id;
+            setConversationId(convId);
+          }
+        }
+      } catch {
+        /* fall through; the convert call below will surface a clear error */
+      }
+    }
+
+    if (!convId) {
       setMessages((prev) => [
         ...prev,
         {
@@ -83,11 +104,11 @@ function ChatPage({ user, onGoTicket, onSelectTicket, onConverted }) {
 
     setConverting(true);
     try {
-      const res = await fetch('/api/chat/convert', {
+      const res = await fetch(`${API_BASE}/api/chat/convert`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          conversation_id: conversationId,
+          conversation_id: convId,
           customer_email: user?.email || 'guest@example.com',
           subject,
         }),
@@ -141,7 +162,7 @@ function ChatPage({ user, onGoTicket, onSelectTicket, onConverted }) {
     setIsTyping(true);
 
     try {
-      const res = await fetch('/api/chat', {
+      const res = await fetch(`${API_BASE}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -163,7 +184,7 @@ function ChatPage({ user, onGoTicket, onSelectTicket, onConverted }) {
         {
           id: Date.now() + 1,
           sender: 'bot',
-          text: 'Sorry, I could not reach the support server right now. Please make sure the backend is running on port 8000 and try again.',
+          text: 'Sorry, I could not reach the support server right now. Please try again in a moment.',
           time: 'Just now',
         },
       ]);
