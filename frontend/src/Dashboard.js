@@ -93,7 +93,7 @@ function Dashboard({ user, onSelectTicket }) {
 
       {/* View 1: Analytics Dashboard */}
       {dashboardTab === 'analytics' && (
-        <SupportAnalytics ticketsCount={tickets.length} />
+        <SupportAnalytics tickets={tickets} />
       )}
 
       {/* View 2: Live Queue & Database Table */}
