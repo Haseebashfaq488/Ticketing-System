@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
-import API_BASE from './api';
+import { apiFetch } from './api';
 
-function TicketDetail({ ticketId, onBack }) {
+function TicketDetail({ ticketId, user, userRole = 'CUSTOMER', onBack }) {
+  const isCustomer = userRole === 'CUSTOMER';
+  const isAdmin = userRole === 'ADMIN';
+
   const [data, setData] = useState(null); // { ticket, customer, analysis }
   const [activityLogs, setActivityLogs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -13,12 +16,16 @@ function TicketDetail({ ticketId, onBack }) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/api/tickets/${ticketId}`);
+      const res = await apiFetch(`/api/tickets/${ticketId}`, {}, user);
+      if (res.status === 403) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.detail || '403 Forbidden: You are not authorized to view this ticket. Customers can only view and manage their own tickets.');
+      }
       if (res.status === 404) throw new Error(`Ticket #${ticketId} was not found in the database.`);
       if (!res.ok) throw new Error(`Server responded with status ${res.status}`);
       setData(await res.json());
 
-      const logRes = await fetch(`${API_BASE}/api/tickets/${ticketId}/activity`);
+      const logRes = await apiFetch(`/api/tickets/${ticketId}/activity`, {}, user);
       if (logRes.ok) {
         const logs = await logRes.json();
         setActivityLogs(Array.isArray(logs) ? logs : []);
@@ -37,16 +44,16 @@ function TicketDetail({ ticketId, onBack }) {
   useEffect(() => {
     if (ticketId) loadTicket();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ticketId]);
+  }, [ticketId, user, userRole]);
 
   const runAction = async (action, body, method = 'POST') => {
     setActionBusy(true);
     try {
-      const res = await fetch(`${API_BASE}/api/tickets/${ticketId}/${action}`, {
+      const res = await apiFetch(`/api/tickets/${ticketId}/${action}`, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: body !== undefined ? JSON.stringify(body) : undefined,
-      });
+      }, user);
       if (!res.ok) {
         const detail = await res.json().catch(() => ({}));
         throw new Error(detail.detail || `Server responded with status ${res.status}`);
@@ -60,15 +67,21 @@ function TicketDetail({ ticketId, onBack }) {
   };
 
   const handleStatusChange = (newStatus) => {
-    if (!newStatus || newStatus === status) return;
+    if (!newStatus) return;
     runAction('status', { status: newStatus }, 'PUT');
   };
 
   const handleDelete = async () => {
+    if (!isAdmin) {
+      alert('Permission Denied: Only ADMIN can delete tickets.');
+      return;
+    }
     if (!window.confirm(`Permanently delete ticket #${ticketId}? This cannot be undone.`)) return;
     setActionBusy(true);
     try {
-      const res = await fetch(`${API_BASE}/api/tickets/${ticketId}`, { method: 'DELETE' });
+      const res = await apiFetch(`/api/tickets/${ticketId}`, {
+        method: 'DELETE',
+      }, user);
       if (!res.ok) {
         const detail = await res.json().catch(() => ({}));
         throw new Error(detail.detail || `Server responded with status ${res.status}`);
@@ -107,8 +120,16 @@ function TicketDetail({ ticketId, onBack }) {
         <button className="btn secondary small-btn" onClick={onBack} style={{ marginBottom: '20px' }}>
           ← Back to Support Dashboard
         </button>
-        <div className="card" style={{ textAlign: 'center', padding: '48px', color: 'var(--accent-rose)' }}>
-          {error}
+        <div className="permission-banner" style={{ padding: '24px', borderRadius: '12px' }}>
+          <svg className="icon-svg large" viewBox="0 0 24 24" style={{ minWidth: '24px' }}>
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          <div>
+            <div style={{ fontSize: '16px', fontWeight: '800', marginBottom: '4px' }}>Access Denied</div>
+            <div>{error}</div>
+          </div>
         </div>
       </div>
     );
@@ -153,27 +174,48 @@ function TicketDetail({ ticketId, onBack }) {
             <span className={`status-badge status-${status.toLowerCase().replace(/_/g, '-')}`}>
               {status.replace(/_/g, ' ')}
             </span>
-            <select
-              className="input-field"
-              value={status}
-              onChange={(e) => handleStatusChange(e.target.value)}
-              disabled={actionBusy}
-              style={{ padding: '6px 12px', fontSize: '12px' }}
-              title="Set ticket status"
-            >
-              {['OPEN', 'IN_PROGRESS', 'WAITING_FOR_CUSTOMER', 'ESCALATED', 'RESOLVED', 'CLOSED'].map((s) => (
-                <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
-              ))}
-            </select>
-            <button
-              className="btn secondary"
-              disabled={actionBusy}
-              onClick={handleDelete}
-              style={{ color: 'var(--accent-rose)', borderColor: 'var(--accent-rose)' }}
-              title="Permanently delete this ticket"
-            >
-              {actionBusy ? 'Working...' : '🗑 Delete Ticket'}
-            </button>
+
+            {/* Status change dropdown: Agent and Admin only */}
+            {!isCustomer && (
+              <select
+                className="input-field"
+                value={status}
+                onChange={(e) => handleStatusChange(e.target.value)}
+                disabled={actionBusy}
+                style={{ padding: '6px 12px', fontSize: '12px' }}
+                title="Set ticket status"
+              >
+                {['OPEN', 'IN_PROGRESS', 'WAITING_FOR_CUSTOMER', 'ESCALATED', 'RESOLVED', 'CLOSED'].map((s) => (
+                  <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
+                ))}
+              </select>
+            )}
+
+            {/* Customer can mark their own ticket as Resolved */}
+            {isCustomer && status !== 'RESOLVED' && status !== 'CLOSED' && (
+              <button
+                className="btn secondary small-btn"
+                disabled={actionBusy}
+                onClick={() => handleStatusChange('RESOLVED')}
+                style={{ fontSize: '12px' }}
+                title="Mark ticket as resolved"
+              >
+                Mark as Resolved
+              </button>
+            )}
+
+            {/* Only ADMIN can delete tickets */}
+            {isAdmin && (
+              <button
+                className="btn secondary"
+                disabled={actionBusy}
+                onClick={handleDelete}
+                style={{ color: 'var(--accent-rose)', borderColor: 'var(--accent-rose)' }}
+                title="Permanently delete this ticket (Admin only)"
+              >
+                {actionBusy ? 'Working...' : '🗑 Delete Ticket'}
+              </button>
+            )}
           </div>
         </div>
 
@@ -226,15 +268,17 @@ function TicketDetail({ ticketId, onBack }) {
               </p>
             </div>
 
-            {/* Human-in-the-loop actions */}
-            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-              <button className="btn primary" disabled={actionBusy} onClick={() => runAction('approve')}>
-                {actionBusy ? 'Working...' : '✓ Approve & Send Suggested Response'}
-              </button>
-              <button className="btn secondary" disabled={actionBusy} onClick={() => runAction('reject')}>
-                ✗ Reject & Escalate
-              </button>
-            </div>
+            {/* Human-in-the-loop actions (Agents and Admins only) */}
+            {!isCustomer && (
+              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                <button className="btn primary" disabled={actionBusy} onClick={() => runAction('approve')}>
+                  {actionBusy ? 'Working...' : '✓ Approve & Send Suggested Response'}
+                </button>
+                <button className="btn secondary" disabled={actionBusy} onClick={() => runAction('reject')}>
+                  ✗ Reject & Escalate
+                </button>
+              </div>
+            )}
           </>
         ) : (
           <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '13px' }}>

@@ -11,6 +11,7 @@ import AboutModal from './AboutModal';
 import UpgradeModal from './UpgradeModal';
 import Footer from './Footer';
 import { supabase } from './supabaseClient';
+import API_BASE from './api';
 
 const DEFAULT_AVATAR =
   'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80';
@@ -24,6 +25,9 @@ function App() {
     return stored ? Number(stored) : null;
   });
   const [user, setUser] = useState(null);
+  const [userRole, setUserRole] = useState(
+    () => localStorage.getItem('userRole') || 'CUSTOMER'
+  );
   const [authReady, setAuthReady] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showAboutModal, setShowAboutModal] = useState(false);
@@ -73,6 +77,25 @@ function App() {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // Synchronize userRole with backend RBAC endpoint
+  useEffect(() => {
+    if (!user?.email) {
+      setUserRole('CUSTOMER');
+      return;
+    }
+    fetch(`${API_BASE}/api/auth/me`, {
+      headers: { 'X-User-Email': user.email },
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.role) {
+          setUserRole(data.role);
+          localStorage.setItem('userRole', data.role);
+        }
+      })
+      .catch(() => {});
+  }, [user]);
 
   const toggleTheme = () => {
     setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
@@ -229,7 +252,7 @@ function App() {
             )}
           </button>
 
-          {/* User Profile Badge */}
+          {/* User Profile Badge & RBAC Role */}
           <div
             className="user-profile-badge"
             onClick={() => handleNavClick('profile')}
@@ -237,9 +260,56 @@ function App() {
           >
             <img src={avatarUrl} alt="Avatar" className="avatar-mini" />
             <span className="user-email-text">
-              {user ? user.email.split('@')[0] : 'Jane'}
+              {user ? user.email.split('@')[0] : 'Guest'}
             </span>
           </div>
+
+          {/* Active RBAC Role Badge & Switcher */}
+          {user && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span
+                className={`role-badge ${
+                  userRole === 'ADMIN'
+                    ? 'role-admin'
+                    : userRole === 'SUPPORT_AGENT'
+                    ? 'role-agent'
+                    : 'role-customer'
+                }`}
+                title={`Active RBAC Role: ${userRole}`}
+              >
+                {userRole === 'ADMIN'
+                  ? '⚡ Admin'
+                  : userRole === 'SUPPORT_AGENT'
+                  ? '🎧 Agent'
+                  : '👤 Customer'}
+              </span>
+
+              <select
+                className="role-selector"
+                value={userRole}
+                onChange={(e) => {
+                  const newRole = e.target.value;
+                  setUserRole(newRole);
+                  localStorage.setItem('userRole', newRole);
+                  if (newRole === 'ADMIN' && user?.email !== 'admin@novaware.com') {
+                    setUser({ ...user, email: 'admin@novaware.com' });
+                  } else if (newRole === 'SUPPORT_AGENT' && user?.email !== 'agent@novaware.com') {
+                    setUser({ ...user, email: 'agent@novaware.com' });
+                  } else if (
+                    newRole === 'CUSTOMER' &&
+                    (user?.email === 'admin@novaware.com' || user?.email === 'agent@novaware.com')
+                  ) {
+                    setUser({ ...user, email: 'john@example.com' });
+                  }
+                }}
+                title="Switch Active RBAC Role for Testing"
+              >
+                <option value="CUSTOMER">Role: Customer</option>
+                <option value="SUPPORT_AGENT">Role: Agent</option>
+                <option value="ADMIN">Role: Admin</option>
+              </select>
+            </div>
+          )}
 
           {user ? (
             <button className="btn ghost small-btn" onClick={handleSignOut}>
@@ -335,7 +405,7 @@ function App() {
       {/* Main View Router */}
       <main>
         {view === 'home' && <Home onSelect={handleNavClick} onOpenUpgrade={openUpgradeModal} />}
-        {view === 'dashboard' && <Dashboard user={user} onSelectTicket={openTicket} />}
+        {view === 'dashboard' && <Dashboard user={user} userRole={userRole} onSelectTicket={openTicket} />}
         {view === 'ticket' && (
           <TicketPage
             user={user}
@@ -375,7 +445,12 @@ function App() {
           )
         )}
         {view === 'detail' && selectedTicket && (
-          <TicketDetail ticketId={selectedTicket} onBack={() => handleNavClick('dashboard')} />
+          <TicketDetail
+            ticketId={selectedTicket}
+            user={user}
+            userRole={userRole}
+            onBack={() => handleNavClick('dashboard')}
+          />
         )}
       </main>
 
