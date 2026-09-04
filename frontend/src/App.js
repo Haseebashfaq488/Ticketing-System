@@ -28,6 +28,7 @@ function App() {
   const [userRole, setUserRole] = useState(
     () => localStorage.getItem('userRole') || 'CUSTOMER'
   );
+  const [actualRole, setActualRole] = useState(null);
   const [authReady, setAuthReady] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showAboutModal, setShowAboutModal] = useState(false);
@@ -78,10 +79,11 @@ function App() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Synchronize userRole with backend RBAC endpoint
+  // Synchronize userRole and actualRole with backend RBAC endpoint
   useEffect(() => {
     if (!user?.email) {
       setUserRole('CUSTOMER');
+      setActualRole(null);
       return;
     }
     fetch(`${API_BASE}/api/auth/me`, {
@@ -90,8 +92,14 @@ function App() {
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (data?.role) {
-          setUserRole(data.role);
-          localStorage.setItem('userRole', data.role);
+          setActualRole(data.role);
+          if (data.role !== 'ADMIN') {
+            setUserRole(data.role);
+            localStorage.setItem('userRole', data.role);
+          } else {
+            const currentStored = localStorage.getItem('userRole') || 'ADMIN';
+            setUserRole(currentStored);
+          }
         }
       })
       .catch(() => {});
@@ -119,11 +127,15 @@ function App() {
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     setUser(null);
+    setActualRole(null);
+    setUserRole('CUSTOMER');
+    localStorage.removeItem('userRole');
     sessionStorage.removeItem('appView');
     sessionStorage.removeItem('selectedTicket');
     setView('home');
     setSelectedTicket(null);
   };
+
 
   const openTicket = (id) => {
     setSelectedTicket(id);
@@ -264,7 +276,7 @@ function App() {
             </span>
           </div>
 
-          {/* Active RBAC Role Badge & Switcher */}
+          {/* Active RBAC Role Badge & Switcher (Switcher is Admin-only) */}
           {user && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <span
@@ -284,30 +296,23 @@ function App() {
                   : '👤 Customer'}
               </span>
 
-              <select
-                className="role-selector"
-                value={userRole}
-                onChange={(e) => {
-                  const newRole = e.target.value;
-                  setUserRole(newRole);
-                  localStorage.setItem('userRole', newRole);
-                  if (newRole === 'ADMIN' && user?.email !== 'admin@novaware.com') {
-                    setUser({ ...user, email: 'admin@novaware.com' });
-                  } else if (newRole === 'SUPPORT_AGENT' && user?.email !== 'agent@novaware.com') {
-                    setUser({ ...user, email: 'agent@novaware.com' });
-                  } else if (
-                    newRole === 'CUSTOMER' &&
-                    (user?.email === 'admin@novaware.com' || user?.email === 'agent@novaware.com')
-                  ) {
-                    setUser({ ...user, email: 'john@example.com' });
-                  }
-                }}
-                title="Switch Active RBAC Role for Testing"
-              >
-                <option value="CUSTOMER">Role: Customer</option>
-                <option value="SUPPORT_AGENT">Role: Agent</option>
-                <option value="ADMIN">Role: Admin</option>
-              </select>
+              {/* Role switcher dropdown is ONLY visible to ADMIN users */}
+              {(actualRole === 'ADMIN' || user?.email === 'admin@novaware.com') && (
+                <select
+                  className="role-selector"
+                  value={userRole}
+                  onChange={(e) => {
+                    const newRole = e.target.value;
+                    setUserRole(newRole);
+                    localStorage.setItem('userRole', newRole);
+                  }}
+                  title="Switch Active RBAC Role Preview (Admin Only)"
+                >
+                  <option value="ADMIN">Role: Admin</option>
+                  <option value="SUPPORT_AGENT">Role: Agent (Preview)</option>
+                  <option value="CUSTOMER">Role: Customer (Preview)</option>
+                </select>
+              )}
             </div>
           )}
 
