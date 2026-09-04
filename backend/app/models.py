@@ -52,6 +52,10 @@ class TicketStatusUpdate(BaseModel):
     status: str = Field(min_length=1, max_length=30)
 
 
+class UserRoleUpdate(BaseModel):
+    role: str = Field(pattern="^(CUSTOMER|SUPPORT_AGENT|ADMIN)$")
+
+
 class ProfileUpdate(BaseModel):
     """Editable fields on the customers table for the profile page."""
 

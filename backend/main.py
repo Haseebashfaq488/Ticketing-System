@@ -6,9 +6,9 @@ from typing import Optional
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.models import ChatRequest, TicketCreate, ConvertChatRequest, ProfileUpdate, TicketStatusUpdate, PolicyCreate, PolicyUpdate
+from app.models import ChatRequest, TicketCreate, ConvertChatRequest, ProfileUpdate, TicketStatusUpdate, PolicyCreate, PolicyUpdate, UserRoleUpdate
 from app.support_agent import analyze_ticket, chat_reply
-from app import tools, policy_repository
+from app import tools, policy_repository, user_service
 from app.email_service import send_ticket_confirmation, send_support_response
 from app.auth import (
     CurrentUser,
@@ -468,3 +468,37 @@ def get_activity(ticket_id: int, current_user: Optional[CurrentUser] = Depends(g
         return res.data or []
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ------------------------- USER & ROLE MANAGEMENT -------------------------
+
+@app.get("/api/users")
+def list_users(current_user: CurrentUser = Depends(require_role([UserRole.ADMIN]))):
+    """List all users across the system. Strictly restricted to ADMIN."""
+    return user_service.list_all_users()
+
+
+@app.put("/api/users/{user_email}/role")
+def update_user_role_endpoint(
+    user_email: str,
+    payload: UserRoleUpdate,
+    current_user: CurrentUser = Depends(require_role([UserRole.ADMIN])),
+):
+    """Promote or demote a user's role. Strictly restricted to ADMIN."""
+    return user_service.update_user_role(
+        target_email=user_email,
+        new_role=payload.role,
+        current_admin_email=current_user.email,
+    )
+
+
+@app.delete("/api/users/{user_email}")
+def delete_user_endpoint(
+    user_email: str,
+    current_user: CurrentUser = Depends(require_role([UserRole.ADMIN])),
+):
+    """Delete a user account. Strictly restricted to ADMIN."""
+    return user_service.delete_user_account(
+        target_email=user_email,
+        current_admin_email=current_user.email,
+    )

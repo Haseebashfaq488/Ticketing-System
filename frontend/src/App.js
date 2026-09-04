@@ -9,9 +9,10 @@ import ProfilePage from './ProfilePage';
 import AuthModal from './AuthModal';
 import AboutModal from './AboutModal';
 import UpgradeModal from './UpgradeModal';
+import UserManagement from './UserManagement';
 import Footer from './Footer';
 import { supabase } from './supabaseClient';
-import API_BASE from './api';
+import API_BASE, { apiFetch } from './api';
 
 const DEFAULT_AVATAR =
   'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80';
@@ -86,9 +87,7 @@ function App() {
       setActualRole(null);
       return;
     }
-    fetch(`${API_BASE}/api/auth/me`, {
-      headers: { 'X-User-Email': user.email },
-    })
+    apiFetch('/api/auth/me', { method: 'GET' }, user)
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (data?.role) {
@@ -235,6 +234,14 @@ function App() {
           >
             Profile
           </button>
+          {(actualRole === 'ADMIN' || user?.email === 'admin@novaware.com') && (
+            <button
+              className={`navlink ${view === 'users' ? 'active' : ''}`}
+              onClick={() => handleNavClick('users')}
+            >
+              Users
+            </button>
+          )}
         </nav>
 
         {/* Right Side: Theme Toggle, Avatar, Sign In, and Mobile Hamburger */}
@@ -404,6 +411,21 @@ function App() {
             </svg>
             User Profile Settings
           </button>
+
+          {(actualRole === 'ADMIN' || user?.email === 'admin@novaware.com') && (
+            <button
+              className={`mobile-nav-item ${view === 'users' ? 'active' : ''}`}
+              onClick={() => handleNavClick('users')}
+            >
+              <svg className="icon-svg" viewBox="0 0 24 24">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+              </svg>
+              User Management
+            </button>
+          )}
         </div>
       )}
 
@@ -456,6 +478,9 @@ function App() {
             userRole={userRole}
             onBack={() => handleNavClick('dashboard')}
           />
+        )}
+        {view === 'users' && (
+          <UserManagement user={user} actualRole={actualRole} />
         )}
       </main>
 
