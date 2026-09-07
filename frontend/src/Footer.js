@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-function Footer({ onNavigate, onOpenAbout }) {
+function Footer({ onNavigate, onOpenAbout, isAdmin }) {
   const [newsletterEmail, setNewsletterEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
 
@@ -44,7 +44,9 @@ function Footer({ onNavigate, onOpenAbout }) {
           <div className="footer-links-col">
             <h4>Product</h4>
             <ul>
-              <li><button onClick={() => onNavigate('dashboard')}>Support Dashboard</button></li>
+              {isAdmin && (
+                <li><button onClick={() => onNavigate('dashboard')}>Support Dashboard</button></li>
+              )}
               <li><button onClick={() => onNavigate('ticket')}>Submit Ticket</button></li>
               <li><button onClick={() => onNavigate('chat')}>Live Chat AI</button></li>
               <li><button onClick={() => scrollToSection('pricing-plans')}>Subscription Plans</button></li>

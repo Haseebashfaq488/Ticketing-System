@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import API_BASE from './api';
 
-function TicketPage({ user, onGoChat, onTicketCreated }) {
+function TicketPage({ user, onGoChat, onTicketCreated, isAdmin, onGoHome }) {
   const [subject, setSubject] = useState('');
   const [category, setCategory] = useState('TECHNICAL');
   const [description, setDescription] = useState('');
@@ -39,7 +39,13 @@ function TicketPage({ user, onGoChat, onTicketCreated }) {
       const data = await res.json();
       setResult(data);
       setSubmitted(true);
-      if (onTicketCreated) onTicketCreated(); // tell the app to refresh dashboard data
+      if (onTicketCreated) onTicketCreated();
+      // If user is a customer, redirect to homepage after ticket submission
+      if (!isAdmin && onGoHome) {
+        setTimeout(() => {
+          onGoHome();
+        }, 1500);
+      }
     } catch (err) {
       setError(
         err.message === 'Failed to fetch'
@@ -85,6 +91,11 @@ function TicketPage({ user, onGoChat, onTicketCreated }) {
           <p style={{ color: 'var(--text-secondary)', marginBottom: '12px' }}>
             Ticket Reference ID <strong style={{ color: 'var(--accent-purple)' }}>#TCK-{result?.ticket_id || '—'}</strong> has been stored in the <code>support_tickets</code> database table.
           </p>
+          {!isAdmin && (
+            <p style={{ color: 'var(--accent-emerald)', fontSize: '13px', fontWeight: '600', marginBottom: '16px' }}>
+              ✓ Redirecting you to the Homepage...
+            </p>
+          )}
           {result?.analysis && (
             <div
               style={{
@@ -117,9 +128,13 @@ function TicketPage({ user, onGoChat, onTicketCreated }) {
             <button className="btn primary" onClick={resetForm}>
               Submit Another Ticket
             </button>
-            {onTicketCreated && (
-              <button className="btn secondary" onClick={() => onTicketCreated(result?.ticket_id)}>
+            {isAdmin ? (
+              <button className="btn secondary" onClick={() => onTicketCreated && onTicketCreated(result?.ticket_id)}>
                 View Dashboard
+              </button>
+            ) : (
+              <button className="btn secondary" onClick={onGoHome}>
+                Return to Homepage
               </button>
             )}
             <button className="btn secondary" onClick={onGoChat}>

@@ -1,4 +1,4 @@
-function Home({ onSelect, onOpenUpgrade }) {
+function Home({ onSelect, onOpenUpgrade, isAdmin }) {
   const listedBusinesses = [
     {
       name: 'ApexTech Solutions',
@@ -50,9 +50,11 @@ function Home({ onSelect, onOpenUpgrade }) {
           <button className="btn secondary" onClick={() => onSelect('chat')}>
             Start Live Chat
           </button>
-          <button className="btn secondary" onClick={() => onSelect('dashboard')}>
-            Support Dashboard
-          </button>
+          {isAdmin && (
+            <button className="btn secondary" onClick={() => onSelect('dashboard')}>
+              Support Dashboard
+            </button>
+          )}
         </div>
       </div>
 

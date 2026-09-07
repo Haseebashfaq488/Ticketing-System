@@ -11,6 +11,7 @@ import AboutModal from './AboutModal';
 import UpgradeModal from './UpgradeModal';
 import Footer from './Footer';
 import { supabase } from './supabaseClient';
+import API_BASE from './api';
 
 const DEFAULT_AVATAR =
   'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80';
@@ -23,7 +24,17 @@ function App() {
     const stored = sessionStorage.getItem('selectedTicket');
     return stored ? Number(stored) : null;
   });
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => {
+    const saved = localStorage.getItem('currentUser');
+    try {
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [userRole, setUserRole] = useState(() => {
+    return localStorage.getItem('currentUserRole') || 'customer';
+  });
   const [authReady, setAuthReady] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showAboutModal, setShowAboutModal] = useState(false);
@@ -37,6 +48,22 @@ function App() {
     localStorage.getItem('userAvatar') || DEFAULT_AVATAR
   );
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Sync user state to localStorage
+  useEffect(() => {
+    if (user) {
+      localStorage.setItem('currentUser', JSON.stringify(user));
+    } else {
+      localStorage.removeItem('currentUser');
+    }
+  }, [user]);
+
+  // Sync userRole state to localStorage
+  useEffect(() => {
+    if (userRole) {
+      localStorage.setItem('currentUserRole', userRole);
+    }
+  }, [userRole]);
 
   // Smooth scroll to top whenever page view changes
   useEffect(() => {
@@ -61,18 +88,67 @@ function App() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
+      if (session?.user) {
+        setUser(session.user);
+      }
       setAuthReady(true);
     });
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+      if (session?.user) {
+        setUser(session.user);
+      } else if (_event === 'SIGNED_OUT') {
+        setUser(null);
+        setUserRole('customer');
+        localStorage.removeItem('currentUser');
+        localStorage.removeItem('currentUserRole');
+      }
     });
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // Fetch customer profile role from backend API whenever user is authenticated
+  useEffect(() => {
+    if (!user || !user.email) {
+      return;
+    }
+    let isMounted = true;
+    fetch(`${API_BASE}/api/profile?email=${encodeURIComponent(user.email)}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!isMounted) return;
+        if (data && data.role) {
+          setUserRole(String(data.role).toLowerCase());
+        } else if (user.email.toLowerCase().startsWith('admin@')) {
+          setUserRole('admin');
+        } else {
+          setUserRole('customer');
+        }
+      })
+      .catch(() => {
+        if (!isMounted) return;
+        if (user.email.toLowerCase().startsWith('admin@')) {
+          setUserRole('admin');
+        } else {
+          setUserRole('customer');
+        }
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [user]);
+
+  const isAdmin = userRole === 'admin';
+
+  // Guard protected views: if customer attempts to open dashboard/detail, redirect to home
+  useEffect(() => {
+    if (!isAdmin && (view === 'dashboard' || view === 'detail')) {
+      setView('home');
+    }
+  }, [view, isAdmin]);
 
   const toggleTheme = () => {
     setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
@@ -96,6 +172,9 @@ function App() {
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     setUser(null);
+    setUserRole('customer');
+    localStorage.removeItem('currentUser');
+    localStorage.removeItem('currentUserRole');
     sessionStorage.removeItem('appView');
     sessionStorage.removeItem('selectedTicket');
     setView('home');
@@ -103,6 +182,7 @@ function App() {
   };
 
   const openTicket = (id) => {
+    if (!isAdmin) return; // Only admin can open dashboard detail
     setSelectedTicket(id);
     setView('detail');
   };
@@ -111,6 +191,12 @@ function App() {
     // Profile is only accessible when signed in — open the auth modal instead.
     if (targetView === 'profile' && !user) {
       setShowAuthModal(true);
+      setMobileMenuOpen(false);
+      return;
+    }
+    // Block dashboard/detail navigation for customers
+    if ((targetView === 'dashboard' || targetView === 'detail') && !isAdmin) {
+      setView('home');
       setMobileMenuOpen(false);
       return;
     }
@@ -176,12 +262,14 @@ function App() {
           >
             Home
           </button>
-          <button
-            className={`navlink ${view === 'dashboard' || view === 'detail' ? 'active' : ''}`}
-            onClick={() => handleNavClick('dashboard')}
-          >
-            Dashboard
-          </button>
+          {isAdmin && (
+            <button
+              className={`navlink ${view === 'dashboard' || view === 'detail' ? 'active' : ''}`}
+              onClick={() => handleNavClick('dashboard')}
+            >
+              Dashboard
+            </button>
+          )}
           <button
             className={`navlink ${view === 'ticket' ? 'active' : ''}`}
             onClick={() => handleNavClick('ticket')}
@@ -287,17 +375,19 @@ function App() {
             Home Overview
           </button>
 
-          <button
-            className={`mobile-nav-item ${view === 'dashboard' || view === 'detail' ? 'active' : ''}`}
-            onClick={() => handleNavClick('dashboard')}
-          >
-            <svg className="icon-svg" viewBox="0 0 24 24">
-              <rect x="3" y="3" width="18" height="18" rx="2" />
-              <line x1="3" y1="9" x2="21" y2="9" />
-              <line x1="9" y1="21" x2="9" y2="9" />
-            </svg>
-            Support Dashboard
-          </button>
+          {isAdmin && (
+            <button
+              className={`mobile-nav-item ${view === 'dashboard' || view === 'detail' ? 'active' : ''}`}
+              onClick={() => handleNavClick('dashboard')}
+            >
+              <svg className="icon-svg" viewBox="0 0 24 24">
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <line x1="3" y1="9" x2="21" y2="9" />
+                <line x1="9" y1="21" x2="9" y2="9" />
+              </svg>
+              Support Dashboard
+            </button>
+          )}
 
           <button
             className={`mobile-nav-item ${view === 'ticket' ? 'active' : ''}`}
@@ -334,13 +424,15 @@ function App() {
 
       {/* Main View Router */}
       <main>
-        {view === 'home' && <Home onSelect={handleNavClick} onOpenUpgrade={openUpgradeModal} />}
-        {view === 'dashboard' && <Dashboard user={user} onSelectTicket={openTicket} />}
+        {view === 'home' && <Home onSelect={handleNavClick} onOpenUpgrade={openUpgradeModal} isAdmin={isAdmin} />}
+        {view === 'dashboard' && isAdmin && <Dashboard user={user} onSelectTicket={openTicket} />}
         {view === 'ticket' && (
           <TicketPage
             user={user}
+            isAdmin={isAdmin}
             onGoChat={() => handleNavClick('chat')}
-            onTicketCreated={() => handleNavClick('dashboard')}
+            onTicketCreated={() => handleNavClick(isAdmin ? 'dashboard' : 'home')}
+            onGoHome={() => handleNavClick('home')}
           />
         )}
         {view === 'chat' && (
@@ -374,13 +466,13 @@ function App() {
             </div>
           )
         )}
-        {view === 'detail' && selectedTicket && (
+        {view === 'detail' && selectedTicket && isAdmin && (
           <TicketDetail ticketId={selectedTicket} onBack={() => handleNavClick('dashboard')} />
         )}
       </main>
 
       {/* Enterprise Footer */}
-      <Footer onNavigate={handleNavClick} onOpenAbout={() => setShowAboutModal(true)} />
+      <Footer onNavigate={handleNavClick} onOpenAbout={() => setShowAboutModal(true)} isAdmin={isAdmin} />
 
       {/* Modals */}
       <AuthModal
