@@ -165,17 +165,14 @@ function AuthModal({ isOpen, onClose, onAuthSuccess }) {
 
         <div className="demo-accounts">
           <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '0 0 8px' }}>
-            Quick Fill Demo Accounts (Role-Based Access):
+            Quick Fill Demo Credentials:
           </p>
-          <div className="chips" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-            <button type="button" className="chip" onClick={() => fillDemo('john@example.com')} title="Test CUSTOMER role (own tickets only)">
-              👤 Customer (john@example.com)
+          <div className="chips">
+            <button type="button" className="chip" onClick={() => fillDemo('john@example.com')}>
+              john@example.com
             </button>
-            <button type="button" className="chip" onClick={() => fillDemo('agent@novaware.com')} title="Test SUPPORT_AGENT role (all tickets, no delete)">
-              🎧 Agent (agent@novaware.com)
-            </button>
-            <button type="button" className="chip" onClick={() => fillDemo('admin@novaware.com')} title="Test ADMIN role (full access & delete)">
-              ⚡ Admin (admin@novaware.com)
+            <button type="button" className="chip" onClick={() => fillDemo('admin@novaware.com')}>
+              admin@novaware.com
             </button>
           </div>
         </div>
