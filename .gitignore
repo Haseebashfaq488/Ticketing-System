@@ -4,19 +4,7 @@ backend/__pycache__/
 backend/app/__pycache__/
 *.pyc
 .env
-.env.*
-.env.local
-*.env
-!.env.example
 backend/.env
-backend/.env.*
-backend/.env.local
-backend/*.env
-!backend/.env.example
-frontend/.env
-frontend/.env.*
-frontend/.env.local
-!frontend/.env.example
 backend/server.log
 backend/server_err.log
 
