@@ -1,0 +1,105 @@
+"""Pydantic request/response schemas + validation of LLM output."""
+from typing import Optional
+
+from pydantic import BaseModel, EmailStr, Field
+
+
+class TicketCreate(BaseModel):
+    customer_name: str = Field(min_length=1, max_length=100)
+    customer_email: EmailStr
+    subject: str = Field(min_length=1, max_length=200)
+    message: str = Field(min_length=1, max_length=5000)
+
+
+class ChatTurn(BaseModel):
+    role: str  # "user" or "ai"
+    content: str = Field(min_length=1, max_length=4000)
+
+
+class ChatRequest(BaseModel):
+    messages: list[ChatTurn]
+    customer_email: Optional[EmailStr] = None
+    conversation_id: Optional[int] = None
+
+
+class ConvertChatRequest(BaseModel):
+    conversation_id: int
+    customer_email: str
+    subject: str
+
+
+class PolicyCreate(BaseModel):
+    """New company policy / knowledge-base document."""
+    slug: Optional[str] = None
+    category: str = Field(default="GENERAL", max_length=40)
+    title: str = Field(min_length=1, max_length=200)
+    content: str = Field(min_length=1, max_length=10000)
+    tags: list[str] = []
+    is_active: bool = True
+
+
+class PolicyUpdate(BaseModel):
+    """Partial update of a company policy."""
+    slug: Optional[str] = Field(default=None, max_length=200)
+    category: Optional[str] = Field(default=None, max_length=40)
+    title: Optional[str] = Field(default=None, min_length=1, max_length=200)
+    content: Optional[str] = Field(default=None, min_length=1, max_length=10000)
+    tags: Optional[list[str]] = None
+    is_active: Optional[bool] = None
+
+
+class TicketStatusUpdate(BaseModel):
+    status: str = Field(min_length=1, max_length=30)
+
+
+class UserRoleUpdate(BaseModel):
+    role: str = Field(pattern="^(CUSTOMER|SUPPORT_AGENT|ADMIN)$")
+
+
+class ProfileUpdate(BaseModel):
+    """Editable fields on the customers table for the profile page."""
+
+    email: EmailStr
+    name: str = Field(min_length=1, max_length=100)
+    plan: str = Field(default="free", pattern="^(free|gold|premium)$")
+    account_status: str = Field(default="active", pattern="^(active|restricted)$")
+    payment_status: str = Field(default="none", pattern="^(none|completed|failed)$")
+
+
+class TicketAnalysis(BaseModel):
+    intent: str
+    category: str
+    priority: str
+    confidence: float
+    reasoning_summary: str
+    recommended_action: str
+    suggested_response: str
+    knowledge_used: list[str] = []
+
+
+def validate_analysis(raw: dict) -> TicketAnalysis:
+    """Strict validation of what the LLM returned.
+
+    If this fails we retry once and then fall back to human review -
+    a malformed AI answer can never corrupt system state.
+    """
+    raw["category"] = str(raw.get("category", "")).strip().upper()
+    raw["priority"] = str(raw.get("priority", "")).strip().upper()
+    raw["recommended_action"] = str(raw.get("recommended_action", "")).strip().upper()
+
+    if raw["category"] not in (
+        "ACCOUNT", "BILLING", "TECHNICAL", "REFUND",
+        "SECURITY", "FEATURE_REQUEST", "GENERAL", "OTHER",
+    ):
+        raise ValueError(f"invalid category: {raw['category']}")
+    if raw["priority"] not in ("LOW", "MEDIUM", "HIGH", "CRITICAL"):
+        raise ValueError(f"invalid priority: {raw['priority']}")
+    if raw["recommended_action"] not in ("AUTOMATIC_RESPONSE", "HUMAN_REVIEW", "ESCALATE"):
+        raise ValueError(f"invalid action: {raw['recommended_action']}")
+
+    conf = float(raw.get("confidence", -1))
+    if not 0.0 <= conf <= 1.0:
+        raise ValueError("confidence out of range")
+    raw["confidence"] = conf
+
+    return TicketAnalysis(**raw)

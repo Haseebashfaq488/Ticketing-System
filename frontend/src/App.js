@@ -9,8 +9,10 @@ import ProfilePage from './ProfilePage';
 import AuthModal from './AuthModal';
 import AboutModal from './AboutModal';
 import UpgradeModal from './UpgradeModal';
+import UserManagement from './UserManagement';
 import Footer from './Footer';
 import { supabase } from './supabaseClient';
+import API_BASE, { apiFetch } from './api';
 
 const DEFAULT_AVATAR =
   'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80';
@@ -24,6 +26,10 @@ function App() {
     return stored ? Number(stored) : null;
   });
   const [user, setUser] = useState(null);
+  const [userRole, setUserRole] = useState(
+    () => localStorage.getItem('userRole') || 'CUSTOMER'
+  );
+  const [actualRole, setActualRole] = useState(null);
   const [authReady, setAuthReady] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showAboutModal, setShowAboutModal] = useState(false);
@@ -74,6 +80,30 @@ function App() {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Synchronize userRole and actualRole with backend RBAC endpoint
+  useEffect(() => {
+    if (!user?.email) {
+      setUserRole('CUSTOMER');
+      setActualRole(null);
+      return;
+    }
+    apiFetch('/api/auth/me', { method: 'GET' }, user)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.role) {
+          setActualRole(data.role);
+          if (data.role !== 'ADMIN') {
+            setUserRole(data.role);
+            localStorage.setItem('userRole', data.role);
+          } else {
+            const currentStored = localStorage.getItem('userRole') || 'ADMIN';
+            setUserRole(currentStored);
+          }
+        }
+      })
+      .catch(() => {});
+  }, [user]);
+
   const toggleTheme = () => {
     setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
   };
@@ -96,11 +126,15 @@ function App() {
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     setUser(null);
+    setActualRole(null);
+    setUserRole('CUSTOMER');
+    localStorage.removeItem('userRole');
     sessionStorage.removeItem('appView');
     sessionStorage.removeItem('selectedTicket');
     setView('home');
     setSelectedTicket(null);
   };
+
 
   const openTicket = (id) => {
     setSelectedTicket(id);
@@ -200,6 +234,14 @@ function App() {
           >
             Profile
           </button>
+          {(actualRole === 'ADMIN' || user?.email === 'admin@novaware.com') && (
+            <button
+              className={`navlink ${view === 'users' ? 'active' : ''}`}
+              onClick={() => handleNavClick('users')}
+            >
+              Users
+            </button>
+          )}
         </nav>
 
         {/* Right Side: Theme Toggle, Avatar, Sign In, and Mobile Hamburger */}
@@ -229,7 +271,7 @@ function App() {
             )}
           </button>
 
-          {/* User Profile Badge */}
+          {/* User Profile Badge & RBAC Role */}
           <div
             className="user-profile-badge"
             onClick={() => handleNavClick('profile')}
@@ -237,9 +279,49 @@ function App() {
           >
             <img src={avatarUrl} alt="Avatar" className="avatar-mini" />
             <span className="user-email-text">
-              {user ? user.email.split('@')[0] : 'Jane'}
+              {user ? user.email.split('@')[0] : 'Guest'}
             </span>
           </div>
+
+          {/* Active RBAC Role Badge & Switcher (Switcher is Admin-only) */}
+          {user && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span
+                className={`role-badge ${
+                  userRole === 'ADMIN'
+                    ? 'role-admin'
+                    : userRole === 'SUPPORT_AGENT'
+                    ? 'role-agent'
+                    : 'role-customer'
+                }`}
+                title={`Active RBAC Role: ${userRole}`}
+              >
+                {userRole === 'ADMIN'
+                  ? '⚡ Admin'
+                  : userRole === 'SUPPORT_AGENT'
+                  ? '🎧 Agent'
+                  : '👤 Customer'}
+              </span>
+
+              {/* Role switcher dropdown is ONLY visible to ADMIN users */}
+              {(actualRole === 'ADMIN' || user?.email === 'admin@novaware.com') && (
+                <select
+                  className="role-selector"
+                  value={userRole}
+                  onChange={(e) => {
+                    const newRole = e.target.value;
+                    setUserRole(newRole);
+                    localStorage.setItem('userRole', newRole);
+                  }}
+                  title="Switch Active RBAC Role Preview (Admin Only)"
+                >
+                  <option value="ADMIN">Role: Admin</option>
+                  <option value="SUPPORT_AGENT">Role: Agent (Preview)</option>
+                  <option value="CUSTOMER">Role: Customer (Preview)</option>
+                </select>
+              )}
+            </div>
+          )}
 
           {user ? (
             <button className="btn ghost small-btn" onClick={handleSignOut}>
@@ -329,13 +411,28 @@ function App() {
             </svg>
             User Profile Settings
           </button>
+
+          {(actualRole === 'ADMIN' || user?.email === 'admin@novaware.com') && (
+            <button
+              className={`mobile-nav-item ${view === 'users' ? 'active' : ''}`}
+              onClick={() => handleNavClick('users')}
+            >
+              <svg className="icon-svg" viewBox="0 0 24 24">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+              </svg>
+              User Management
+            </button>
+          )}
         </div>
       )}
 
       {/* Main View Router */}
       <main>
         {view === 'home' && <Home onSelect={handleNavClick} onOpenUpgrade={openUpgradeModal} />}
-        {view === 'dashboard' && <Dashboard user={user} onSelectTicket={openTicket} />}
+        {view === 'dashboard' && <Dashboard user={user} userRole={userRole} onSelectTicket={openTicket} />}
         {view === 'ticket' && (
           <TicketPage
             user={user}
@@ -375,7 +472,15 @@ function App() {
           )
         )}
         {view === 'detail' && selectedTicket && (
-          <TicketDetail ticketId={selectedTicket} onBack={() => handleNavClick('dashboard')} />
+          <TicketDetail
+            ticketId={selectedTicket}
+            user={user}
+            userRole={userRole}
+            onBack={() => handleNavClick('dashboard')}
+          />
+        )}
+        {view === 'users' && (
+          <UserManagement user={user} actualRole={actualRole} />
         )}
       </main>
 

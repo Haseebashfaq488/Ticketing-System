@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
-import API_BASE from './api';
+import { apiFetch } from './api';
 import SupportAnalytics from './SupportAnalytics';
 
-function Dashboard({ user, onSelectTicket }) {
-  const [dashboardTab, setDashboardTab] = useState('analytics'); // 'analytics' | 'queue'
+function Dashboard({ user, userRole = 'CUSTOMER', onSelectTicket }) {
+  const isCustomer = userRole === 'CUSTOMER';
+  const isAdmin = userRole === 'ADMIN';
+  const [dashboardTab, setDashboardTab] = useState(isCustomer ? 'queue' : 'analytics'); // 'analytics' | 'queue'
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -11,16 +13,29 @@ function Dashboard({ user, onSelectTicket }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [deletingId, setDeletingId] = useState(null);
 
+  // If role changes to customer while on analytics, switch to queue
+  useEffect(() => {
+    if (isCustomer && dashboardTab === 'analytics') {
+      setDashboardTab('queue');
+    }
+  }, [isCustomer, dashboardTab]);
+
   const loadTickets = async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/api/tickets`);
-      if (!res.ok) throw new Error(`Server responded with status ${res.status}`);
+      const res = await apiFetch('/api/tickets', {}, user);
+      if (res.status === 401) {
+        throw new Error('Please sign in to view your tickets.');
+      }
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.detail || `Server responded with status ${res.status}`);
+      }
       const data = await res.json();
       setTickets(Array.isArray(data) ? data : []);
     } catch (err) {
-      setError('Could not load tickets from the server. Is the backend running?');
+      setError(err.message || 'Could not load tickets from the server.');
     } finally {
       setLoading(false);
     }
@@ -28,7 +43,8 @@ function Dashboard({ user, onSelectTicket }) {
 
   useEffect(() => {
     loadTickets();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, userRole]);
 
   const filteredTickets = tickets.filter((t) => {
     const matchesFilter = filterStatus === 'ALL' || t.status === filterStatus;
@@ -42,14 +58,24 @@ function Dashboard({ user, onSelectTicket }) {
 
   const handleDelete = async (e, ticketId) => {
     e.stopPropagation(); // don't open the ticket detail page
+    if (!isAdmin) {
+      alert('Permission Denied: Only ADMIN can delete tickets.');
+      return;
+    }
     if (!window.confirm(`Permanently delete ticket TCK-${ticketId}? This cannot be undone.`)) return;
     setDeletingId(ticketId);
     try {
-      const res = await fetch(`${API_BASE}/api/tickets/${ticketId}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Delete failed');
+      const res = await apiFetch(`/api/tickets/${ticketId}`, {
+        method: 'DELETE',
+      }, user);
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.detail || 'Delete failed: unauthorized action.');
+      }
+
       setTickets((prev) => prev.filter((t) => t.ticket_id !== ticketId));
     } catch (err) {
-      setError('Could not delete the ticket. Is the backend running?');
+      setError(err.message || 'Could not delete the ticket.');
     } finally {
       setDeletingId(null);
     }
@@ -60,17 +86,21 @@ function Dashboard({ user, onSelectTicket }) {
       {/* Top Section / Subnavigation Header */}
       <div className="dashboard-top-nav-bar">
         <div className="dashboard-tab-pills">
-          <button
-            className={`dashboard-nav-pill ${dashboardTab === 'analytics' ? 'active' : ''}`}
-            onClick={() => setDashboardTab('analytics')}
-          >
-            <svg className="icon-svg" viewBox="0 0 24 24" style={{ marginRight: '6px' }}>
-              <line x1="18" y1="20" x2="18" y2="10" />
-              <line x1="12" y1="20" x2="12" y2="4" />
-              <line x1="6" y1="20" x2="6" y2="14" />
-            </svg>
-            Analytics & SLA Intelligence
-          </button>
+          {/* Analytics tab is only visible to Support Agents and Admins */}
+          {!isCustomer && (
+            <button
+              className={`dashboard-nav-pill ${dashboardTab === 'analytics' ? 'active' : ''}`}
+              onClick={() => setDashboardTab('analytics')}
+            >
+              <svg className="icon-svg" viewBox="0 0 24 24" style={{ marginRight: '6px' }}>
+                <line x1="18" y1="20" x2="18" y2="10" />
+                <line x1="12" y1="20" x2="12" y2="4" />
+                <line x1="6" y1="20" x2="6" y2="14" />
+              </svg>
+              Analytics & SLA Intelligence
+            </button>
+          )}
+
           <button
             className={`dashboard-nav-pill ${dashboardTab === 'queue' ? 'active' : ''}`}
             onClick={() => setDashboardTab('queue')}
@@ -80,7 +110,7 @@ function Dashboard({ user, onSelectTicket }) {
               <line x1="3" y1="9" x2="21" y2="9" />
               <line x1="9" y1="21" x2="9" y2="9" />
             </svg>
-            Live Ticket Queue ({tickets.length})
+            {isCustomer ? `My Tickets (${tickets.length})` : `Live Ticket Queue (${tickets.length})`}
           </button>
         </div>
 
@@ -91,8 +121,8 @@ function Dashboard({ user, onSelectTicket }) {
         </div>
       </div>
 
-      {/* View 1: Analytics Dashboard */}
-      {dashboardTab === 'analytics' && (
+      {/* View 1: Analytics Dashboard (Restricted to SUPPORT_AGENT and ADMIN) */}
+      {!isCustomer && dashboardTab === 'analytics' && (
         <SupportAnalytics tickets={tickets} />
       )}
 
@@ -111,10 +141,16 @@ function Dashboard({ user, onSelectTicket }) {
           >
             <div>
               <h2 style={{ fontSize: '28px', fontWeight: '800', margin: '0 0 6px' }}>
-                Support <span className="grad-text">Queue & Database</span>
+                {isCustomer ? (
+                  <>My Support <span className="grad-text">Tickets</span></>
+                ) : (
+                  <>Support <span className="grad-text">Queue & Database</span></>
+                )}
               </h2>
               <p style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '14px' }}>
-                Real-time support_tickets & ai_analyses database records with triage statuses.
+                {isCustomer
+                  ? 'Viewing your submitted support tickets. Real-time updates on status and responses.'
+                  : 'Real-time support_tickets & ai_analyses database records with triage statuses.'}
               </p>
             </div>
           </div>
@@ -129,7 +165,7 @@ function Dashboard({ user, onSelectTicket }) {
               </div>
               <div>
                 <div className="stat-value">{tickets.length}</div>
-                <div className="stat-label">Total Database Tickets</div>
+                <div className="stat-label">{isCustomer ? 'My Total Tickets' : 'Total Database Tickets'}</div>
               </div>
             </div>
 
@@ -210,25 +246,25 @@ function Dashboard({ user, onSelectTicket }) {
                     <th>Priority</th>
                     <th>Status</th>
                     <th>Created</th>
-                    <th>Actions</th>
+                    {isAdmin && <th>Actions</th>}
                   </tr>
                 </thead>
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan="8" style={{ textAlign: 'center', padding: '32px', color: 'var(--text-secondary)' }}>
+                      <td colSpan={isAdmin ? 8 : 7} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-secondary)' }}>
                         Loading tickets from database...
                       </td>
                     </tr>
                   ) : error ? (
                     <tr>
-                      <td colSpan="8" style={{ textAlign: 'center', padding: '32px', color: 'var(--accent-rose)' }}>
+                      <td colSpan={isAdmin ? 8 : 7} style={{ textAlign: 'center', padding: '32px', color: 'var(--accent-rose)' }}>
                         {error}
                       </td>
                     </tr>
                   ) : filteredTickets.length === 0 ? (
                     <tr>
-                      <td colSpan="8" style={{ textAlign: 'center', padding: '32px', color: 'var(--text-secondary)' }}>
+                      <td colSpan={isAdmin ? 8 : 7} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-secondary)' }}>
                         No tickets found. Submit a ticket or convert a live chat to create one.
                       </td>
                     </tr>
@@ -245,7 +281,7 @@ function Dashboard({ user, onSelectTicket }) {
                         <td>
                           <span
                             style={{
-                              fontSize: '11px',
+                            fontSize: '11px',
                               padding: '3px 8px',
                               borderRadius: '6px',
                               background: 'var(--bg-input)',
@@ -274,17 +310,19 @@ function Dashboard({ user, onSelectTicket }) {
                         <td style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
                           {t.created_at ? new Date(t.created_at).toLocaleDateString() : '—'}
                         </td>
-                        <td>
-                          <button
-                            className="btn secondary small-btn"
-                            disabled={deletingId === t.ticket_id}
-                            onClick={(e) => handleDelete(e, t.ticket_id)}
-                            style={{ color: 'var(--accent-rose)', borderColor: 'var(--accent-rose)', padding: '4px 10px', fontSize: '11px' }}
-                            title={`Delete ticket TCK-${t.ticket_id}`}
-                          >
-                            {deletingId === t.ticket_id ? '...' : '🗑 Delete'}
-                          </button>
-                        </td>
+                        {isAdmin && (
+                          <td>
+                            <button
+                              className="btn secondary small-btn"
+                              disabled={deletingId === t.ticket_id}
+                              onClick={(e) => handleDelete(e, t.ticket_id)}
+                              style={{ color: 'var(--accent-rose)', borderColor: 'var(--accent-rose)', padding: '4px 10px', fontSize: '11px' }}
+                              title={`Delete ticket TCK-${t.ticket_id}`}
+                            >
+                              {deletingId === t.ticket_id ? '...' : '🗑 Delete'}
+                            </button>
+                          </td>
+                        )}
                       </tr>
                     ))
                   )}
