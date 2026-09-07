@@ -6,6 +6,7 @@ import ChatPage from './ChatPage';
 import Dashboard from './Dashboard';
 import TicketDetail from './TicketDetail';
 import ProfilePage from './ProfilePage';
+import MyTicketsPage from './MyTicketsPage';
 import AuthModal from './AuthModal';
 import AboutModal from './AboutModal';
 import UpgradeModal from './UpgradeModal';
@@ -276,6 +277,14 @@ function App() {
           >
             Submit Ticket
           </button>
+          {!isAdmin && (
+            <button
+              className={`navlink ${view === 'mytickets' ? 'active' : ''}`}
+              onClick={() => handleNavClick('mytickets')}
+            >
+              My Tickets
+            </button>
+          )}
           <button
             className={`navlink ${view === 'chat' ? 'active' : ''}`}
             onClick={() => handleNavClick('chat')}
@@ -399,6 +408,20 @@ function App() {
             Submit Ticket
           </button>
 
+          {!isAdmin && (
+            <button
+              className={`mobile-nav-item ${view === 'mytickets' ? 'active' : ''}`}
+              onClick={() => handleNavClick('mytickets')}
+            >
+              <svg className="icon-svg" viewBox="0 0 24 24">
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <line x1="3" y1="9" x2="21" y2="9" />
+                <line x1="9" y1="21" x2="9" y2="9" />
+              </svg>
+              My Tickets
+            </button>
+          )}
+
           <button
             className={`mobile-nav-item ${view === 'chat' ? 'active' : ''}`}
             onClick={() => handleNavClick('chat')}
@@ -431,16 +454,23 @@ function App() {
             user={user}
             isAdmin={isAdmin}
             onGoChat={() => handleNavClick('chat')}
-            onTicketCreated={() => handleNavClick(isAdmin ? 'dashboard' : 'home')}
-            onGoHome={() => handleNavClick('home')}
+            onTicketCreated={() => handleNavClick(isAdmin ? 'dashboard' : 'mytickets')}
+            onGoHome={() => handleNavClick('mytickets')}
+          />
+        )}
+        {view === 'mytickets' && (
+          <MyTicketsPage
+            user={user}
+            onGoSubmitTicket={() => handleNavClick('ticket')}
+            onGoChat={() => handleNavClick('chat')}
           />
         )}
         {view === 'chat' && (
           <ChatPage
             user={user}
             onGoTicket={() => handleNavClick('ticket')}
-            onSelectTicket={openTicket}
-            onConverted={openTicket}
+            onSelectTicket={isAdmin ? openTicket : () => handleNavClick('mytickets')}
+            onConverted={isAdmin ? openTicket : () => handleNavClick('mytickets')}
           />
         )}
         {view === 'profile' && (
