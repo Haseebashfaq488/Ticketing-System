@@ -1135,10 +1135,10 @@ main {
   border: 2px solid var(--bg-card);
 }
 
-/* 3-Pane Grid Layout */
+/* 2-Pane Grid Layout (Chat + Policy Context) */
 .hub-layout {
   display: grid;
-  grid-template-columns: 290px minmax(0, 1fr) 280px;
+  grid-template-columns: minmax(0, 1fr) 300px;
   gap: 16px;
   height: calc(100vh - 220px);
   min-height: 560px;
@@ -1146,10 +1146,18 @@ main {
 
 @media (max-width: 1180px) {
   .hub-layout {
-    grid-template-columns: 270px minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) 280px;
   }
-  .hub-context-panel {
-    display: none;
+}
+
+@media (max-width: 960px) {
+  .hub-layout {
+    grid-template-columns: 1fr;
+    height: auto;
+    min-height: auto;
+  }
+  .hub-main-panel {
+    min-height: 480px;
   }
 }
 
@@ -1159,7 +1167,7 @@ main {
     height: auto;
     min-height: auto;
   }
-  .hub-tab-btn.active::after {
+  .hub-chat-actions {
     display: none;
   }
 }
@@ -1712,6 +1720,18 @@ main {
   color: var(--text-secondary);
   line-height: 1.4;
   margin: 0;
+}
+
+.hub-policy-body {
+  font-size: 12.5px;
+  color: var(--text-primary);
+  line-height: 1.55;
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  background: var(--bg-input);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  border-radius: 8px;
+  white-space: pre-wrap;
 }
 
 /* ==========================================================================
